@@ -1,0 +1,9 @@
+./mvnw spring-boot:run
+./mvnw clean install -U
+
+.\clean-all.bat
+.\build-all.bat
+docker-compose up -d --build
+
+http://localhost:9090/doc/swagger-ui.html
+.\mvnw clean test -U

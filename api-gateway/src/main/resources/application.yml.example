@@ -1,0 +1,98 @@
+# Ejemplo inactivo. Requiere una clave propia, compartida con Auth.
+server:
+  port: 9090
+
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          secret-key: ${JWT_SECRET}
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: promocion-service
+          uri: lb://promocion-service
+          predicates:
+            - Path=/api/promociones/**
+        - id: pedido-service
+          uri: lb://pedido-service
+          predicates:
+            - Path=/api/pedidos/**
+        - id: resena-service
+          uri: lb://resena-service
+          predicates:
+            - Path=/api/resenas/**
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+        - id: venta-service
+          uri: lb://venta-service
+          predicates:
+            - Path=/api/ventas/**
+        - id: catalogo-service
+          uri: lb://catalogo-service
+          predicates:
+            - Path=/api/productos/**
+        - id: usuario-service
+          uri: lb://usuario-service
+          predicates:
+            - Path=/api/usuarios/**
+        - id: inventario-service
+          uri: lb://inventario-service
+          predicates:
+            - Path=/api/inventario/**
+        - id: despacho-service
+          uri: lb://despacho-service
+          predicates:
+            - Path=/api/despachos/**
+        - id: soporte-service
+          uri: lb://soporte-service
+          predicates:
+            - Path=/api/soporte/**
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /doc/swagger-ui.html
+    urls:
+      - name: 1. Catálogo Service
+        url: /api/productos/v3/api-docs
+      - name: 2. Venta Service
+        url: /api/ventas/v3/api-docs
+      - name: 3. Usuario Service
+        url: /api/usuarios/v3/api-docs
+      - name: 4. Pedido Service
+        url: /api/pedidos/v3/api-docs
+      - name: 5. Promoción Service
+        url: /api/promociones/v3/api-docs
+      - name: 6. Reseña Service
+        url: /api/resenas/v3/api-docs
+      - name: 7. Inventario Service
+        url: /api/inventario/v3/api-docs
+      - name: 8. Despacho Service
+        url: /api/despachos/v3/api-docs
+      - name: 9. Auth Service
+        url: /auth/v3/api-docs
+      - name: 10. Soporte Service
+        url: /api/soporte/v3/api-docs

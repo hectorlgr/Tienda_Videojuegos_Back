@@ -89,7 +89,7 @@ public class UserControllerTest {
         @Test
         public void testRegisterCliente_Exito() throws Exception {
                 // GIVEN
-                when(userService.register("juan.perez@correo.com", "MiPassword123", "CLIENTE", "Juan Pérez"))
+                when(userService.register("juan.perez@correo.com", "MiPassword123", "Juan Pérez"))
                                 .thenReturn("Usuario creado exitosamente!");
 
                 // WHEN & THEN
@@ -99,30 +99,14 @@ public class UserControllerTest {
                                 .andExpect(status().isCreated()) // Espera HTTP 201
                                 .andExpect(jsonPath("$.message").value("Usuario creado exitosamente!"));
 
-                verify(userService, times(1)).register("juan.perez@correo.com", "MiPassword123", "CLIENTE",
+                verify(userService, times(1)).register("juan.perez@correo.com", "MiPassword123",
                                 "Juan Pérez");
-        }
-
-        @Test
-        public void testRegisterAdmin_Exito() throws Exception {
-                // GIVEN
-                when(userService.register("juan.perez@correo.com", "MiPassword123", "ADMIN", "Juan Pérez"))
-                                .thenReturn("Usuario creado exitosamente!");
-
-                // WHEN & THEN
-                mockMvc.perform(post("/auth/register/admin")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(registerDto)))
-                                .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.message").value("Usuario creado exitosamente!"));
-
-                verify(userService, times(1)).register("juan.perez@correo.com", "MiPassword123", "ADMIN", "Juan Pérez");
         }
 
         @Test
         public void testRegister_Falla_Retorna400() throws Exception {
                 // GIVEN:
-                when(userService.register(anyString(), anyString(), anyString(), anyString()))
+                when(userService.register(anyString(), anyString(), anyString()))
                                 .thenThrow(new BadRequestException("El usuario con este email ya existe"));
 
                 // WHEN & THEN

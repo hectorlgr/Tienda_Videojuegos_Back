@@ -114,7 +114,7 @@ public class UserServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         // WHEN
-        String resultado = userService.register("nuevo@ferreteria.com", "1234", "USER", "Juan Perez");
+        String resultado = userService.register("nuevo@ferreteria.com", "1234", "Juan Perez");
 
         // THEN
         assertEquals("Usuario creado exitosamente!", resultado);
@@ -131,7 +131,7 @@ public class UserServiceTest {
 
         // WHEN & THEN
         BadRequestException excepcion = assertThrows(BadRequestException.class, () -> {
-            userService.register("existente@ferreteria.com", "1234", "USER", "Juan");
+            userService.register("existente@ferreteria.com", "1234", "Juan");
         });
 
         assertEquals("El usuario con este email ya existe", excepcion.getMessage());

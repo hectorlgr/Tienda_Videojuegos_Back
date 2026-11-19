@@ -50,24 +50,11 @@ public class UserController {
     public ResponseEntity<Map<String, String>> registerCliente(@Valid @RequestBody RegisterRequestDto dto) {
         // Si ya existe, el Service lanza BadRequestException y el
         // GlobalExceptionHandler devuelve el 400
-        String resultado = userService.register(dto.getEmail(), dto.getPassword(), "CLIENTE", dto.getNombre());
+        String resultado = userService.register(dto.getEmail(), dto.getPassword(), dto.getNombre());
 
         Map<String, String> resp = new HashMap<>();
         resp.put("message", resultado);
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
-    @Operation(summary = "Registrar un administrador", description = "Crea un usuario en el sistema con privilegios elevados (rol ADMIN).")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Administrador creado exitosamente."),
-            @ApiResponse(responseCode = "400", description = "Error de validación o el email ya está registrado.", content = @Content)
-    })
-    @PostMapping("/register/admin")
-    public ResponseEntity<Map<String, String>> registerAdmin(@Valid @RequestBody RegisterRequestDto dto) {
-        String resultado = userService.register(dto.getEmail(), dto.getPassword(), "ADMIN", dto.getNombre());
-
-        Map<String, String> resp = new HashMap<>();
-        resp.put("message", resultado);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-    }
 }

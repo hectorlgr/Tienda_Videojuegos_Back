@@ -46,8 +46,8 @@ public class UserService {
         return user.getRole();
     }
 
-    // Método para registrar un nuevo usuario
-    public String register(String email, String password, String role, String nombre) {
+    // Registro público: el rol se define exclusivamente en el servidor.
+    public String register(String email, String password, String nombre) {
         User existing = userRepository.findByEmail(email);
         if (existing != null) {
             throw new BadRequestException("El usuario con este email ya existe"); // Lanza 400
@@ -56,7 +56,7 @@ public class UserService {
         User user = new User();
         user.setEmail(email);
         user.setPassword(hashService.sha1(password));
-        user.setRole(role);
+        user.setRole("CLIENTE");
         userRepository.save(user);
 
         try {

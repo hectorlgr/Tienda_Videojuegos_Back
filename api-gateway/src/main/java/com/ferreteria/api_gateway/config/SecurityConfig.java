@@ -26,7 +26,11 @@ public class SecurityConfig {
                                 .authorizeExchange(exchanges -> exchanges
                                                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                                                 // RUTAS PÚBLICAS
-                                                .pathMatchers("/auth/**").permitAll()
+                                                .pathMatchers(HttpMethod.POST, "/auth/login", "/auth/register/cliente")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.GET, "/auth/v3/api-docs", "/auth/v3/api-docs/**")
+                                                .permitAll()
+                                                .pathMatchers("/auth/**").denyAll()
                                                 .pathMatchers(
                                                                 "/doc/**",
                                                                 "/v3/api-docs/**",

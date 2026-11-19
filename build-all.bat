@@ -48,18 +48,8 @@ cd inventario-service
 call .\mvnw clean package -DskipTests
 cd ..
 
-echo Construyendo resena-service...
-cd resena-service
-call .\mvnw clean package -DskipTests
-cd ..
-
 echo Construyendo promocion-service...
 cd promocion-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo soporte-service...
-cd soporte-service
 call .\mvnw clean package -DskipTests
 cd ..
 

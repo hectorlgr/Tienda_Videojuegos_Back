@@ -1,5 +1,15 @@
 # Copia base de CheckPoint Store
 
+> Registro histórico de la preparación inicial y la revisión previa a Git.
+> Estado posterior: el repositorio ya tiene un commit base y se trabaja en
+> `feature/estructura-backend`. En la primera etapa estructural se retiraron
+> `resena-service` y `soporte-service`; quedan 10 módulos, con Promociones temporal.
+> Sus configuraciones locales también se retiraron: quedan siete configuraciones
+> heredadas de MySQL, además del ejemplo de Auth. Los recuentos de 12 módulos y
+> nueve configuraciones de las secciones siguientes corresponden a la copia inicial.
+> El ejemplo de Gateway y los scripts se actualizaron para reflejar el retiro.
+> Véase `MIGRACION_ESTRUCTURAL.md` para las dependencias y pendientes actuales.
+
 Origen: carpeta hermana `Backend Ferreteria - copia`.
 
 Se conservaron los 12 modulos originales, sus fuentes Java, pruebas existentes,

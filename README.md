@@ -1,16 +1,23 @@
-# Sistema Marketplace para Ferretería
+# CheckPoint Store Backend — migración estructural
+
+Base derivada del backend de ferretería. Esta etapa retira Reseñas y Soporte;
+conserva Promociones temporalmente porque Ventas aún utiliza sus cupones.
+No se han realizado fusiones ni se considera el backend completamente funcional.
+El detalle de dependencias y pendientes está en [MIGRACION_ESTRUCTURAL.md](MIGRACION_ESTRUCTURAL.md).
 
 ## Descripción del Proyecto
 
-Este proyecto consiste en el desarrollo del backend para un sistema de gestión integral de una Ferretería en formato Marketplace, construido bajo una robusta arquitectura de **microservicios** utilizando **Spring Boot** y **Java 21**.
+El código heredado utiliza **Spring Boot** y **Java 21** y se adaptará gradualmente a CheckPoint Store.
 
-El sistema digitaliza y automatiza el ciclo de vida completo de las operaciones de la ferretería: desde la gestión del catálogo de productos y control de inventario, hasta el procesamiento de ventas, orquestación de despachos, aplicación de promociones, atención al cliente y gestión de usuarios.
+La estructura actual conserva catálogo, inventario, ventas, pedidos, despachos,
+usuarios, autenticación y promociones heredadas. El destino acordado comprende
+Identidad, Catálogo y Ventas, manteniendo provisionalmente Gateway y Eureka.
 
 A nivel técnico, la solución implementa:
 
 - **Patrón de Arquitectura CSR:** Clara separación de capas en `Controller` (enrutamiento REST), `Service` (lógica de negocio) y `Repository` (acceso a datos MySQL).
 - **Comunicación REST:** Integración entre microservicios utilizando `WebClient` con manejo de excepciones y validación de reglas de dominio cruzadas.
-- **Calidad de Código:** Alta cobertura de pruebas unitarias implementadas con JUnit y Mockito (≥ 80% verificado mediante Jacoco).
+- **Pruebas heredadas:** JUnit, Mockito y Jacoco; la cobertura no se ha verificado en esta etapa.
 - **Seguridad y Enrutamiento:** Centralización de las peticiones a través de un **API Gateway** dinámico y descubrimiento de servicios gestionado por **Netflix Eureka**.
 - **Gestión de Datos y Trazabilidad:** Inicialización de datos mixta (combinando `Liquibase` y `DataLoaders`) y centralización de logs del sistema estructurados mediante volúmenes.
 
@@ -33,18 +40,17 @@ El ecosistema está compuesto por los siguientes servicios:
 4. **`venta-service`**: Orquestación de compras, cálculos de totales y enlace con otros dominios.
 5. **`usuario-service`**: Administración de perfiles de clientes.
 6. **`pedido-service`**: Gestión logística de los pedidos generados.
-7. **`promocion-service`**: Validación y aplicación de cupones de descuento.
-8. **`resena-service`**: Sistema de calificaciones y comentarios de productos.
-9. **`inventario-service`**: Descuento y adición de stock físico.
-10. **`despacho-service`**: Gestión de envíos y cálculo de fletes.
-11. **`auth-service`**: Generación y validación de tokens JWT para seguridad (OAuth2).
-12. **`soporte-service`**: Gestión de tickets, reclamos y atención al cliente post-venta.
+7. **`promocion-service`**: Temporal; Ventas consulta la validación de cupones.
+8. **`inventario-service`**: Descuento y adición de stock físico.
+9. **`despacho-service`**: Gestión de envíos y cálculo de fletes.
+10. **`auth-service`**: Generación y validación de tokens JWT para seguridad (OAuth2).
 
 ---
 
 ## Rutas del API Gateway
 
-Todas las peticiones del frontend deben dirigirse al API Gateway (`http://localhost:9090`). El Gateway se encargará de rutear las peticiones internamente usando los predicados configurados:
+Rutas heredadas conservadas en el ejemplo del Gateway (`http://localhost:9090`).
+La configuración activa aún falta; esta tabla no representa la API final de React:
 
 | Dominio / Servicio | Ruta Expuesta en Gateway | URL Base Interna          |
 | ------------------ | ------------------------ | ------------------------- |
@@ -53,10 +59,8 @@ Todas las peticiones del frontend deben dirigirse al API Gateway (`http://localh
 | **Usuarios**       | `/api/usuarios/**`       | `lb://usuario-service`    |
 | **Pedidos**        | `/api/pedidos/**`        | `lb://pedido-service`     |
 | **Promociones**    | `/api/promociones/**`    | `lb://promocion-service`  |
-| **Reseñas**        | `/api/resenas/**`        | `lb://resena-service`     |
 | **Inventario**     | `/api/inventario/**`     | `lb://inventario-service` |
 | **Despachos**      | `/api/despachos/**`      | `lb://despacho-service`   |
-| **Soporte**        | `/api/soporte/**`        | `lb://soporte-service`    |
 | **Autenticación**  | `/auth/**`               | `lb://auth-service`       |
 
 ---
@@ -79,29 +83,19 @@ La documentación interactiva de toda la plataforma está centralizada. No es ne
 
 ### Opción 1: Despliegue Automatizado con Docker
 
-Cada microservicio cuenta con su propio `Dockerfile` optimizado para empaquetar la aplicación. El proyecto incluye un archivo centralizado `docker-compose.yml` que orquesta la infraestructura, herramientas de soporte y el ciclo de vida de todos los contenedores de la red interna (incluyendo limpieza y construcción).
+Cada módulo conserva su `Dockerfile`. `docker-compose.yml` fue excluido de la
+copia por contener una clave fija y no se reconstruye en esta etapa.
+No hay un despliegue Docker preparado.
 
-Para compilar, limpiar volúmenes anteriores, construir las imágenes y levantar todo el ecosistema de microservicios, ejecuta secuencialmente desde la raíz del proyecto:
-
-```bash
-.\clean-all.bat
-.\build-all.bat
-docker-compose up -d --build
-
-```
-
-Este flujo descargará e instanciará los contenedores necesarios, configurará las redes virtuales internas y dejará el ecosistema completamente operativo y con bases de datos frescas sin configuraciones manuales adicionales.
+Los scripts heredados se conservan, sin ejecutarlos. `build-all.bat` contiene
+eliminación global de contenedores e imágenes; no debe utilizarse como procedimiento
+de validación de esta migración.
 
 ### Opción 2: Ejecución Manual Local
 
-En caso de no utilizar Docker para el ecosistema completo, se puede usar el script automatizado local si estás en entorno Windows:
-
-```bash
-.\iniciar_servicios.bat
-
-```
-
-_(Nota: Requiere tener un motor de base de datos MySQL corriendo localmente en el puerto 3306)._
+El script `iniciar_servicios.bat` refleja los módulos conservados, pero no se ha
+ejecutado. Antes de iniciar servicios deben prepararse las configuraciones activas
+de Auth y Gateway y conexiones a bases propias. Véase [COPIA_BASE.md](COPIA_BASE.md).
 
 ### Pruebas Unitarias y Cobertura (Jacoco)
 

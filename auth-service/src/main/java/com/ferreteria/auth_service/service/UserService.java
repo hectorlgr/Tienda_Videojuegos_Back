@@ -3,6 +3,7 @@ package com.ferreteria.auth_service.service;
 import com.ferreteria.auth_service.exception.BadRequestException;
 import com.ferreteria.auth_service.exception.UnauthorizedException;
 import com.ferreteria.auth_service.model.User;
+import com.ferreteria.auth_service.security.Roles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,7 @@ public class UserService {
     public String login(String email, String password) {
         User user = userRepository.findByEmail(email);
 
-        if (user == null) {
+        if (user == null || !Roles.esValido(user.getRole())) {
             throw new UnauthorizedException("Credenciales inválidas"); // Lanza 401
         }
 
@@ -56,7 +57,7 @@ public class UserService {
         User user = new User();
         user.setEmail(email);
         user.setPassword(hashService.encode(password));
-        user.setRole("CLIENTE");
+        user.setRole(Roles.CLIENTE);
         user.setNombre(nombre);
         userRepository.saveAndFlush(user);
 

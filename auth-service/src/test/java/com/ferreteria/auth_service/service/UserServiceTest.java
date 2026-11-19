@@ -40,11 +40,11 @@ public class UserServiceTest {
         user.setId(1L);
         user.setEmail("admin@ferreteria.com");
         user.setPassword("hashed_123");
-        user.setRole("ADMIN");
+        user.setRole("ADMINISTRADOR");
 
         when(userRepository.findByEmail("admin@ferreteria.com")).thenReturn(user);
         when(hashService.matches("123", "hashed_123")).thenReturn(true);
-        when(jwtService.generateToken(1L, "admin@ferreteria.com", "ADMIN")).thenReturn("token_jwt_valido");
+        when(jwtService.generateToken(1L, "admin@ferreteria.com", "ADMINISTRADOR")).thenReturn("token_jwt_valido");
 
         // WHEN
         String token = userService.login("admin@ferreteria.com", "123");
@@ -60,6 +60,7 @@ public class UserServiceTest {
         User user = new User();
         user.setEmail("admin@ferreteria.com");
         user.setPassword("hashed_123");
+        user.setRole("CLIENTE");
 
         when(userRepository.findByEmail("admin@ferreteria.com")).thenReturn(user);
         when(hashService.matches("clave_falsa", "hashed_123")).thenReturn(false);

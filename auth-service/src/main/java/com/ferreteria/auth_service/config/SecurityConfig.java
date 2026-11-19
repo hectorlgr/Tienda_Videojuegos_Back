@@ -3,6 +3,7 @@ package com.ferreteria.auth_service.config;
 import java.nio.charset.StandardCharsets;
 
 import com.ferreteria.auth_service.security.JwtUserId;
+import com.ferreteria.auth_service.security.Roles;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -78,10 +79,11 @@ public class SecurityConfig {
     }
 
     private OAuth2TokenValidatorResult validateIdentity(Jwt jwt) {
-        if (jwt.getExpiresAt() != null && JwtUserId.getValidId(jwt) != null) {
+        if (jwt.getExpiresAt() != null && JwtUserId.getValidId(jwt) != null
+                && Roles.esValido(jwt.getClaims().get("role"))) {
             return OAuth2TokenValidatorResult.success();
         }
         return OAuth2TokenValidatorResult.failure(
-                new OAuth2Error("invalid_token", "El token no contiene una identidad o expiración válida", null));
+                new OAuth2Error("invalid_token", "El token no contiene una identidad, rol o expiración válida", null));
     }
 }

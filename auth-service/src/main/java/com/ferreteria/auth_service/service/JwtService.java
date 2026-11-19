@@ -2,6 +2,7 @@ package com.ferreteria.auth_service.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import com.ferreteria.auth_service.security.Roles;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -29,6 +30,9 @@ public class JwtService {
 
     // Método para generar un token JWT con el ID persistido, email y rol del usuario
     public String generateToken(long userId, String email, String role) {
+        if (!Roles.esValido(role)) {
+            throw new IllegalArgumentException("Rol no válido");
+        }
         Date ahora = new Date();
         Date expiration = new Date(ahora.getTime() + 1000 * 60 * 60);
         return Jwts.builder()

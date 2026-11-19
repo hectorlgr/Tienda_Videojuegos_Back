@@ -25,7 +25,7 @@ public class JwtServiceTest {
     void testGenerarYValidarToken() {
         // GIVEN
         String email = "hector@ferreteria.com";
-        String rol = "ADMIN";
+        String rol = "ADMINISTRADOR";
 
         // WHEN - Generar
         String token = jwtService.generateToken(1L, email, rol);

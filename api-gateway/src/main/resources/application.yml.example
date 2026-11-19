@@ -26,10 +26,6 @@ spring:
           uri: lb://pedido-service
           predicates:
             - Path=/api/pedidos/**
-        - id: resena-service
-          uri: lb://resena-service
-          predicates:
-            - Path=/api/resenas/**
         - id: auth-service
           uri: lb://auth-service
           predicates:
@@ -54,10 +50,6 @@ spring:
           uri: lb://despacho-service
           predicates:
             - Path=/api/despachos/**
-        - id: soporte-service
-          uri: lb://soporte-service
-          predicates:
-            - Path=/api/soporte/**
 
 eureka:
   instance:
@@ -86,13 +78,9 @@ springdoc:
         url: /api/pedidos/v3/api-docs
       - name: 5. Promoción Service
         url: /api/promociones/v3/api-docs
-      - name: 6. Reseña Service
-        url: /api/resenas/v3/api-docs
-      - name: 7. Inventario Service
+      - name: 6. Inventario Service
         url: /api/inventario/v3/api-docs
-      - name: 8. Despacho Service
+      - name: 7. Despacho Service
         url: /api/despachos/v3/api-docs
-      - name: 9. Auth Service
+      - name: 8. Auth Service
         url: /auth/v3/api-docs
-      - name: 10. Soporte Service
-        url: /api/soporte/v3/api-docs

@@ -46,18 +46,8 @@ cd inventario-service
 call .\mvnw clean
 cd ..
 
-echo Limpiando resena-service...
-cd resena-service
-call .\mvnw clean
-cd ..
-
 echo Limpiando promocion-service...
 cd promocion-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando soporte-service...
-cd soporte-service
 call .\mvnw clean
 cd ..
 

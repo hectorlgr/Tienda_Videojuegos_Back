@@ -35,10 +35,10 @@ CREATE TABLE users (
 - El registro persiste una sola fila mediante una transacción Spring.
   UNIQUE protege también solicitudes concurrentes; una colisión devuelve
   HTTP 400 y no reemplaza la cuenta existente.
-- El ejemplo de configuración de Auth aún contiene `ddl-auto=update`.
-  No usarlo para reconvertir una base heredada: preparar una base nueva y
-  comprobar su esquema antes de habilitar el servicio. No se ha ejecutado
-  este SQL ni se ha modificado ninguna base.
+- La configuración local y el ejemplo usan `ddl-auto=validate` y deshabilitan
+  la inicialización SQL automática. Preparar el esquema en una base nueva antes
+  del arranque; Auth no crea ni altera tablas. No se ha ejecutado este SQL
+  ni se ha modificado ninguna base.
 
 ## Estado temporal
 
@@ -61,10 +61,10 @@ El ejemplo del Gateway dirige GET y PATCH de la ruta exacta a `lb://auth-service
 las rutas heredadas de Usuarios permanecen intactas. El Bearer se conserva y
 Auth verifica otra vez firma HS256, validez temporal, expiración presente e ID.
 
-No hay configuraciones operativas de Auth/Gateway: solo ejemplos inactivos.
-Para comprobar la ruta posteriormente harán falta configuración externa propia,
-el mismo JWT_SECRET, descubrimiento Eureka y la base nueva preparada.
-No se han iniciado servicios ni comprobado respuestas HTTP en esta etapa.
+Hay configuraciones locales de Auth/Gateway ignoradas por Git y ejemplos
+reproducibles. Faltan variables externas y la base nueva preparada antes de
+arrancar. Véase `../PRUEBAS_IDENTIDAD_LOCAL.md`. No se han iniciado servicios
+ni comprobado respuestas HTTP en esta etapa.
 
 Validación funcional pendiente con Swagger/Postman:
 - Login y GET con JWT propio: 200 con los siete campos.

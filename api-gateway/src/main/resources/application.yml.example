@@ -20,6 +20,11 @@ spring:
         locator:
           enabled: true
       routes:
+        - id: auth-perfil
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/usuarios/me
+            - Method=GET
         - id: promocion-service
           uri: lb://promocion-service
           predicates:

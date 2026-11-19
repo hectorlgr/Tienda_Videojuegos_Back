@@ -1,8 +1,8 @@
 package com.ferreteria.auth_service.config;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 
+import com.ferreteria.auth_service.security.JwtUserId;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -52,7 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/auth/v3/api-docs", "/auth/v3/api-docs/**",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/api/v1/usuarios/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/usuarios/me").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint()))
@@ -77,16 +77,8 @@ public class SecurityConfig {
     }
 
     private OAuth2TokenValidatorResult validateIdentity(Jwt jwt) {
-        Object userId = jwt.getClaims().get("userId");
-        if (jwt.getExpiresAt() != null && userId instanceof Number number) {
-            try {
-                // Acepta Integer/Long/BigInteger/etc. sin truncar fracciones ni desbordar Long.
-                if (new BigDecimal(number.toString()).longValueExact() > 0) {
-                    return OAuth2TokenValidatorResult.success();
-                }
-            } catch (IllegalArgumentException | ArithmeticException e) {
-                // Claim numérico inválido: no autenticar.
-            }
+        if (jwt.getExpiresAt() != null && JwtUserId.getValidId(jwt) != null) {
+            return OAuth2TokenValidatorResult.success();
         }
         return OAuth2TokenValidatorResult.failure(
                 new OAuth2Error("invalid_token", "El token no contiene una identidad o expiración válida", null));

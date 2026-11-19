@@ -46,7 +46,33 @@ Auth ya no crea perfiles en `usuario-service`. Ventas todavía consulta ese
 servicio y no encontrará allí las nuevas cuentas. No replicar ni sincronizar
 filas como solución provisional.
 
-Quedan pendientes los endpoints de perfil propio, los DTO de respuesta
-sin datos sensibles, la autenticación por ID estable en el JWT y la adaptación
-de Ventas. El JWT actual mantiene el correo como subject y los roles actuales
-no se modifican en esta etapa.
+## Consulta de perfil propio
+
+`GET /api/v1/usuarios/me` consulta la cuenta mediante el claim numérico `userId`
+del JWT validado localmente por Spring Security. Conserva el correo como
+subject y los roles actuales. No acepta un identificador desde la solicitud.
+
+La respuesta contiene exclusivamente `id`, `nombre`, `email`, `telefono`,
+`direccion`, `region` y `comuna`. No contiene rol, contraseña ni hash.
+Una cuenta inexistente devuelve 404; un JWT ausente, inválido o sin `userId`
+válido devuelve 401. No se implementa edición ni consulta por ID arbitrario.
+
+El ejemplo del Gateway añade únicamente la ruta GET exacta a `lb://auth-service`;
+las rutas heredadas de Usuarios permanecen intactas. El Bearer se conserva y
+Auth verifica otra vez firma HS256, validez temporal, expiración presente e ID.
+
+No hay configuraciones operativas de Auth/Gateway: solo ejemplos inactivos.
+Para comprobar la ruta posteriormente harán falta configuración externa propia,
+el mismo JWT_SECRET, descubrimiento Eureka y la base nueva preparada.
+No se han iniciado servicios ni comprobado respuestas HTTP en esta etapa.
+
+Validación funcional pendiente con Swagger/Postman:
+- Login y GET con JWT propio: 200 con los siete campos.
+- Dos cuentas distintas: cada JWT devuelve exclusivamente su propio perfil.
+- Parámetros o cabeceras con otro ID no cambian la cuenta consultada.
+- Sin Bearer, firma alterada, token expirado o `userId` inválido: 401.
+- JWT válido cuya cuenta ya no exista: 404 controlado.
+- PATCH y consultas por ID arbitrario no están habilitados en Auth.
+
+Quedan pendientes la edición del perfil, la adaptación de Ventas y el
+renombramiento a identidad-service.

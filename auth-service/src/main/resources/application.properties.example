@@ -19,6 +19,9 @@ spring.jpa.show-sql=true
 spring.jpa.hibernate.ddl-auto=update
 
 # Sin clave incorporada ni valor predeterminado.
+# Compartir con Gateway. Usar una clave aleatoria segura de 32 a 47 bytes
+# (preferiblemente 32 bytes ASCII) para que el emisor actual seleccione HS256.
+# Claves mayores seleccionan HS384/HS512 y se rechazan al configurar el decoder.
 jwt.secret=${JWT_SECRET}
 
 eureka.client.fetch-registry=true

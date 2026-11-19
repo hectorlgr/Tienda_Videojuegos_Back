@@ -5,7 +5,7 @@ import com.ferreteria.auth_service.exception.UnauthorizedException;
 import com.ferreteria.auth_service.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ferreteria.auth_service.repository.UserRepository;
 
@@ -20,9 +20,6 @@ public class UserService {
 
     @Autowired
     private HashService hashService;
-
-    @Autowired
-    private WebClient.Builder webClientBuilder;
 
     // Método para manejar el proceso de login
     public String login(String email, String password) {
@@ -46,7 +43,11 @@ public class UserService {
     }
 
     // Registro público: el rol se define exclusivamente en el servidor.
+    @Transactional
     public String register(String email, String password, String nombre) {
+        if (nombre == null || nombre.isBlank()) {
+            throw new BadRequestException("El nombre es obligatorio");
+        }
         User existing = userRepository.findByEmail(email);
         if (existing != null) {
             throw new BadRequestException("El usuario con este email ya existe"); // Lanza 400
@@ -56,24 +57,8 @@ public class UserService {
         user.setEmail(email);
         user.setPassword(hashService.encode(password));
         user.setRole("CLIENTE");
-        userRepository.save(user);
-
-        try {
-            java.util.Map<String, String> usuarioPerfil = new java.util.HashMap<>();
-            usuarioPerfil.put("email", email);
-            usuarioPerfil.put("nombre", nombre);
-
-            webClientBuilder.build().post()
-                    .uri("http://usuario-service/api/usuarios")
-                    .bodyValue(usuarioPerfil)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-        } catch (Exception e) {
-            throw new BadRequestException(
-                    "Usuario creado en Auth, pero falló la creación del perfil: " + e.getMessage());
-        }
+        user.setNombre(nombre);
+        userRepository.saveAndFlush(user);
 
         return "Usuario creado exitosamente!";
     }

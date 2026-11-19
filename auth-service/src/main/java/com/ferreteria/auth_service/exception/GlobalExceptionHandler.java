@@ -1,14 +1,14 @@
 package com.ferreteria.auth_service.exception;
 
 import java.time.OffsetDateTime;
+import java.sql.SQLException;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.reactive.function.client.WebClientRequestException;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -33,29 +33,22 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(WebClientResponseException.class)
-    public ResponseEntity<ApiErrorResponse> handleWebClientResponse(WebClientResponseException ex,
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
             HttpServletRequest request) {
-        HttpStatus status = (HttpStatus) ex.getStatusCode();
-        if (status == null) {
-            status = HttpStatus.BAD_GATEWAY;
+        // MySQL 1062: la restricción UNIQUE también protege altas concurrentes.
+        String message = "Los datos del usuario incumplen las restricciones de almacenamiento";
+        if (ex.getMostSpecificCause() instanceof SQLException sqlException
+                && sqlException.getErrorCode() == 1062) {
+            message = "El usuario con este email ya existe";
         }
-        return buildResponse(status, "Error de comunicación con servicio externo: " + ex.getMessage(),
-                request.getRequestURI());
-    }
-
-    @ExceptionHandler(WebClientRequestException.class)
-    public ResponseEntity<ApiErrorResponse> handleWebClientRequest(WebClientRequestException ex,
-            HttpServletRequest request) {
-        return buildResponse(HttpStatus.BAD_GATEWAY,
-                "No se pudo establecer conexión con el servicio externo: " + ex.getMessage(),
-                request.getRequestURI());
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneralException(Exception ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Ocurrió un error inesperado: " + ex.getMessage(), request.getRequestURI());
+                "Ocurrió un error inesperado", request.getRequestURI());
     }
 
     @ExceptionHandler(UnauthorizedException.class)

@@ -30,4 +30,18 @@ public class User {
     // Rol del usuario ("ADMIN", "CLIENTE", "OPERADOR")
     @Column(nullable = false)
     private String role;
+
+    @Column(nullable = false)
+    private String nombre;
+
+    @Column(length = 30)
+    private String telefono;
+
+    private String direccion;
+
+    @Column(length = 100)
+    private String region;
+
+    @Column(length = 100)
+    private String comuna;
 }

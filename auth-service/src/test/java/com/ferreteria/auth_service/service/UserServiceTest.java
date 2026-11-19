@@ -1,23 +1,17 @@
 package com.ferreteria.auth_service.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import com.ferreteria.auth_service.model.User;
 import com.ferreteria.auth_service.repository.UserRepository;
@@ -36,37 +30,8 @@ public class UserServiceTest {
     @Mock
     private HashService hashService;
 
-    @Mock
-    private WebClient.Builder webClientBuilder;
-
-    @Mock
-    private WebClient webClient;
-
-    @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
-
-    @Mock
-    private WebClient.RequestBodySpec requestBodySpec;
-
-    @Mock
-    private WebClient.RequestHeadersSpec requestHeadersSpec;
-
-    @Mock
-    private WebClient.ResponseSpec responseSpec;
-
     @InjectMocks
     private UserService userService;
-
-    @BeforeEach
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    void setUp() {
-        lenient().when(webClientBuilder.build()).thenReturn(webClient);
-        lenient().when(webClient.post()).thenReturn((WebClient.RequestBodyUriSpec) requestBodyUriSpec);
-        lenient().when(requestBodyUriSpec.uri(anyString())).thenReturn((WebClient.RequestBodySpec) requestBodySpec);
-        lenient().when(requestBodySpec.bodyValue(any())).thenReturn((WebClient.RequestHeadersSpec) requestHeadersSpec);
-        lenient().when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        lenient().when(responseSpec.bodyToMono(String.class)).thenReturn(Mono.just("OK"));
-    }
 
     @Test
     void testLogin_Exito_RetornaToken() {
@@ -111,15 +76,14 @@ public class UserServiceTest {
         // GIVEN
         when(userRepository.findByEmail("nuevo@ferreteria.com")).thenReturn(null);
         when(hashService.encode("1234")).thenReturn("hashed_1234");
-        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         // WHEN
         String resultado = userService.register("nuevo@ferreteria.com", "1234", "Juan Perez");
 
         // THEN
         assertEquals("Usuario creado exitosamente!", resultado);
-        verify(userRepository, times(1)).save(any(User.class));
-        verify(webClientBuilder, times(1)).build();
+        verify(userRepository, times(1)).saveAndFlush(any(User.class));
     }
 
     @Test

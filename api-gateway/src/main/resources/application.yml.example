@@ -1,4 +1,6 @@
-# Ejemplo inactivo. Requiere una clave propia, compartida con Auth.
+# Ejemplo inactivo. Requiere exactamente el mismo JWT_SECRET que Auth.
+# Clave aleatoria segura: al menos 32 bytes UTF-8, sin limite maximo.
+# Se usan los bytes UTF-8 del texto, sin decodificar Base64. Solo se acepta HS256.
 server:
   port: 9090
 

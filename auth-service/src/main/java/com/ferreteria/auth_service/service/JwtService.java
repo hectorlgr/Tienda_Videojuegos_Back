@@ -1,15 +1,15 @@
 package com.ferreteria.auth_service.service;
 
-import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 
 @Service
@@ -19,8 +19,12 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("jwt.secret debe contener al menos 32 bytes UTF-8");
+        }
+        return new SecretKeySpec(keyBytes, "HmacSHA256");
     }
 
     // Método para generar un token JWT con el ID persistido, email y rol del usuario
@@ -33,7 +37,7 @@ public class JwtService {
                 .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(expiration)
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -44,7 +48,8 @@ public class JwtService {
         String jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
         try {
             return Jwts.parser()
-                    .verifyWith((SecretKey) getSigningKey())
+                    .verifyWith(getSigningKey())
+                    .sig().clear().add(Jwts.SIG.HS256).and()
                     .build()
                     .parseSignedClaims(jwt)
                     .getPayload()
@@ -61,7 +66,8 @@ public class JwtService {
         String jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
         try {
             Jwts.parser()
-                    .verifyWith((SecretKey) getSigningKey())
+                    .verifyWith(getSigningKey())
+                    .sig().clear().add(Jwts.SIG.HS256).and()
                     .build()
                     .parseSignedClaims(jwt);
             return true;

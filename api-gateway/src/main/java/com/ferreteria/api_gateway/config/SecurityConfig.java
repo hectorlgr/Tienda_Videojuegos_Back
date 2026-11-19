@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -108,10 +109,15 @@ public class SecurityConfig {
         // Bean para leer la firma del token
         @Bean
         public ReactiveJwtDecoder jwtDecoder() {
-                SecretKeySpec key = new SecretKeySpec(
-                                secret.getBytes(StandardCharsets.UTF_8),
-                                "HmacSHA256");
-                return NimbusReactiveJwtDecoder.withSecretKey(key).build();
+                byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+                if (keyBytes.length < 32) {
+                        throw new IllegalArgumentException(
+                                        "La clave JWT debe contener al menos 32 bytes UTF-8");
+                }
+                SecretKeySpec key = new SecretKeySpec(keyBytes, "HmacSHA256");
+                return NimbusReactiveJwtDecoder.withSecretKey(key)
+                                .macAlgorithm(MacAlgorithm.HS256)
+                                .build();
         }
 
         // Leer roles

@@ -1,10 +1,11 @@
 package com.ferreteria.auth_service.config;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -62,12 +63,11 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(@Value("${jwt.secret}") String secret) {
-        // Misma conversión y selección de clave que el emisor actual JwtService.
-        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
-        if (!"HmacSHA256".equals(key.getAlgorithm())) {
-            throw new IllegalArgumentException(
-                    "jwt.secret debe generar una clave HS256 compatible con Auth y Gateway (32 a 47 bytes)");
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("jwt.secret debe contener al menos 32 bytes UTF-8");
         }
+        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();

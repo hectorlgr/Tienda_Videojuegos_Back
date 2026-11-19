@@ -33,7 +33,7 @@ public class UserService {
             throw new UnauthorizedException("Credenciales inválidas"); // Lanza 401
         }
 
-        return jwtService.generateToken(email, user.getRole());
+        return jwtService.generateToken(user.getId(), email, user.getRole());
     }
 
     // Método para obtener el rol de un usuario a partir de su email

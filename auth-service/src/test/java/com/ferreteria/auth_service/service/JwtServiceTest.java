@@ -28,7 +28,7 @@ public class JwtServiceTest {
         String rol = "ADMIN";
 
         // WHEN - Generar
-        String token = jwtService.generateToken(email, rol);
+        String token = jwtService.generateToken(1L, email, rol);
 
         // THEN - Validar que se creó
         assertNotNull(token);

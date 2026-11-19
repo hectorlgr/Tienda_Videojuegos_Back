@@ -23,13 +23,14 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    // Método para generar un token JWT con el email y el rol del usuario
-    public String generateToken(String email, String role) {
+    // Método para generar un token JWT con el ID persistido, email y rol del usuario
+    public String generateToken(long userId, String email, String role) {
         Date ahora = new Date();
         Date expiration = new Date(ahora.getTime() + 1000 * 60 * 60);
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role)
+                .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(expiration)
                 .signWith(getSigningKey())

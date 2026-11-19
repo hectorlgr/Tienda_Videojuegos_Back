@@ -37,13 +37,14 @@ public class UserServiceTest {
     void testLogin_Exito_RetornaToken() {
         // GIVEN
         User user = new User();
+        user.setId(1L);
         user.setEmail("admin@ferreteria.com");
         user.setPassword("hashed_123");
         user.setRole("ADMIN");
 
         when(userRepository.findByEmail("admin@ferreteria.com")).thenReturn(user);
         when(hashService.matches("123", "hashed_123")).thenReturn(true);
-        when(jwtService.generateToken("admin@ferreteria.com", "ADMIN")).thenReturn("token_jwt_valido");
+        when(jwtService.generateToken(1L, "admin@ferreteria.com", "ADMIN")).thenReturn("token_jwt_valido");
 
         // WHEN
         String token = userService.login("admin@ferreteria.com", "123");

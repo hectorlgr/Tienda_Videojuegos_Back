@@ -24,7 +24,7 @@ spring:
           uri: lb://auth-service
           predicates:
             - Path=/api/v1/usuarios/me
-            - Method=GET
+            - Method=GET,PATCH
         - id: promocion-service
           uri: lb://promocion-service
           predicates:

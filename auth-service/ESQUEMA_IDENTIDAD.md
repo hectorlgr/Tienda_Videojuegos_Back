@@ -55,9 +55,9 @@ subject y los roles actuales. No acepta un identificador desde la solicitud.
 La respuesta contiene exclusivamente `id`, `nombre`, `email`, `telefono`,
 `direccion`, `region` y `comuna`. No contiene rol, contraseña ni hash.
 Una cuenta inexistente devuelve 404; un JWT ausente, inválido o sin `userId`
-válido devuelve 401. No se implementa edición ni consulta por ID arbitrario.
+válido devuelve 401. No se implementa consulta por ID arbitrario.
 
-El ejemplo del Gateway añade únicamente la ruta GET exacta a `lb://auth-service`;
+El ejemplo del Gateway dirige GET y PATCH de la ruta exacta a `lb://auth-service`;
 las rutas heredadas de Usuarios permanecen intactas. El Bearer se conserva y
 Auth verifica otra vez firma HS256, validez temporal, expiración presente e ID.
 
@@ -72,7 +72,29 @@ Validación funcional pendiente con Swagger/Postman:
 - Parámetros o cabeceras con otro ID no cambian la cuenta consultada.
 - Sin Bearer, firma alterada, token expirado o `userId` inválido: 401.
 - JWT válido cuya cuenta ya no exista: 404 controlado.
-- PATCH y consultas por ID arbitrario no están habilitados en Auth.
+- Las consultas por ID arbitrario no están habilitadas en Auth.
 
-Quedan pendientes la edición del perfil, la adaptación de Ventas y el
-renombramiento a identidad-service.
+## Actualización parcial de contacto y dirección
+
+`PATCH /api/v1/usuarios/me` usa el mismo JWT validado y devuelve 200 con el
+mismo DTO de perfil que GET. Solo permite modificar `telefono` (máximo 30),
+`direccion` (255), `region` (100) y `comuna` (100), mediante un DTO específico
+con validación Jakarta. Los límites se aplican a la longitud String de Java
+(un carácter suplementario, como algunos emojis, ocupa dos unidades UTF-16).
+
+- Campo omitido o valor `null`: conserva el valor actual.
+- Cadena vacía `""`: almacena NULL para limpiar el campo opcional.
+- Otros textos se conservan tal como se reciben, sin recortar espacios.
+- `{}` no cambia los valores y devuelve el perfil actual.
+- `id`, `nombre`, `email`, `password` y `role` no son propiedades del DTO de
+  entrada ni se asignan durante la actualización.
+- La modificación y el guardado se realizan en una transacción Spring.
+- Exceso de longitud o cuerpo JSON ilegible: 400 sin detalles sensibles.
+- JWT ausente/inválido: 401. Cuenta inexistente: 404.
+
+Comprobaciones HTTP pendientes: modificar un solo campo y verificar los demás
+con GET; omitir campos y enviar null; limpiar con ""; superar cada límite;
+enviar JSON malformado; intentar alterar propiedades no editables o un ID
+ajeno. Repetir mediante Gateway y directamente contra Auth.
+
+Quedan pendientes la adaptación de Ventas y el renombramiento a identidad-service.

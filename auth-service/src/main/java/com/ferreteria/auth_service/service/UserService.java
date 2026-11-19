@@ -32,8 +32,7 @@ public class UserService {
             throw new UnauthorizedException("Credenciales inválidas"); // Lanza 401
         }
 
-        String hashedInput = hashService.sha1(password);
-        if (!hashedInput.equals(user.getPassword())) {
+        if (!hashService.matches(password, user.getPassword())) {
             throw new UnauthorizedException("Credenciales inválidas"); // Lanza 401
         }
 
@@ -55,7 +54,7 @@ public class UserService {
 
         User user = new User();
         user.setEmail(email);
-        user.setPassword(hashService.sha1(password));
+        user.setPassword(hashService.encode(password));
         user.setRole("CLIENTE");
         userRepository.save(user);
 

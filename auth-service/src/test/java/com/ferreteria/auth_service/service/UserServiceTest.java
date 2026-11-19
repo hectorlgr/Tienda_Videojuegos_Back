@@ -77,7 +77,7 @@ public class UserServiceTest {
         user.setRole("ADMIN");
 
         when(userRepository.findByEmail("admin@ferreteria.com")).thenReturn(user);
-        when(hashService.sha1("123")).thenReturn("hashed_123");
+        when(hashService.matches("123", "hashed_123")).thenReturn(true);
         when(jwtService.generateToken("admin@ferreteria.com", "ADMIN")).thenReturn("token_jwt_valido");
 
         // WHEN
@@ -85,7 +85,7 @@ public class UserServiceTest {
 
         // THEN
         assertEquals("token_jwt_valido", token);
-        verify(hashService, times(1)).sha1("123");
+        verify(hashService, times(1)).matches("123", "hashed_123");
     }
 
     @Test
@@ -96,7 +96,7 @@ public class UserServiceTest {
         user.setPassword("hashed_123");
 
         when(userRepository.findByEmail("admin@ferreteria.com")).thenReturn(user);
-        when(hashService.sha1("clave_falsa")).thenReturn("hash_incorrecto");
+        when(hashService.matches("clave_falsa", "hashed_123")).thenReturn(false);
 
         // WHEN & THEN
         UnauthorizedException excepcion = assertThrows(UnauthorizedException.class, () -> {
@@ -110,7 +110,7 @@ public class UserServiceTest {
     void testRegister_UsuarioNuevo_Exito() {
         // GIVEN
         when(userRepository.findByEmail("nuevo@ferreteria.com")).thenReturn(null);
-        when(hashService.sha1("1234")).thenReturn("hashed_1234");
+        when(hashService.encode("1234")).thenReturn("hashed_1234");
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         // WHEN

@@ -8,4 +8,6 @@ import org.springframework.stereotype.Repository;
 public interface UserRepository extends JpaRepository<User, Long> {
     // Método clave: Buscar un usuario por su correo
     User findByEmail(String email);
+
+    boolean existsByRole(String role);
 }

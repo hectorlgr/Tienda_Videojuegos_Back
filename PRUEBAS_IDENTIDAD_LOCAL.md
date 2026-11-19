@@ -2,8 +2,41 @@
 
 ## Estado y requisitos
 
-Configuración preparada; **no se ha ejecutado SQL, iniciado servicios ni probado
-HTTP**. Los comandos siguientes son para una ejecución posterior autorizada.
+Configuración preparada y verificaciones funcionales manuales informadas por
+el desarrollador con Postman y MySQL. Los resultados confirmados se registran
+a continuación; las instrucciones restantes sirven para reproducir el entorno
+y no constituyen evidencia de ejecución de cada caso.
+
+## Resultados de la validación manual
+
+**Fecha de registro del informe: 2026-11-19.** No se proporcionó la fecha exacta
+de ejecución. Fuente: resultados comunicados por el desarrollador; esta
+actualización documental no ejecutó servicios, pruebas ni SQL.
+
+| Verificación | Endpoint o herramienta | Resultado informado |
+| --- | --- | --- |
+| Registro público de cliente | `POST /auth/register/cliente` | HTTP **201** |
+| Login | `POST /auth/login` | HTTP **200** y JWT |
+| Consulta del perfil propio | `GET /api/v1/usuarios/me` | HTTP **200** |
+| Actualización del perfil propio | `PATCH /api/v1/usuarios/me` | HTTP **200** |
+| Seguridad | Pruebas manuales, sin desglose de casos proporcionado | Realizadas correctamente |
+| Persistencia del perfil | MySQL | Persistencia de los cambios confirmada |
+
+### Alcance y limitaciones
+
+- Los resultados corresponden a la validación manual reportada con Postman y
+  MySQL, no a pruebas automatizadas ni a una repetición independiente.
+- No se aportaron capturas, colecciones, logs, consultas ejecutadas, cuerpos
+  completos de respuesta, identificadores de cuentas ni valores modificados.
+- No se especificó si las peticiones pasaron por Gateway o fueron directas a
+  Auth, ni se detallaron host, puertos o configuración efectiva del entorno.
+- La confirmación general de seguridad no permite atribuir resultados a cada
+  caso negativo o de aislamiento descrito más adelante.
+- No se afirma cobertura de todos los límites de entrada, concurrencia,
+  caducidad de tokens, descubrimiento Eureka, Swagger ni otros microservicios.
+- No se incluyen contraseñas, JWT ni otros secretos.
+
+## Requisitos para reproducir
 
 - JDK 21, `JAVA_HOME` correcto y `java` en PATH.
 - PowerShell 5.1 o posterior, Git y acceso a Maven Central si faltan artefactos.
@@ -13,7 +46,7 @@ HTTP**. Los comandos siguientes son para una ejecución posterior autorizada.
 
 POM revisados, sin cambios: Auth Boot 4.0.5/Cloud 2025.1.1; Gateway
 Boot 3.3.5/Cloud 2023.0.3; Eureka Boot 4.0.6/Cloud 2025.1.1. Todos usan Java 21.
-La interoperabilidad real entre estos módulos queda pendiente del arranque.
+El informe manual no desglosa la interoperabilidad entre estos módulos.
 
 ## Base exclusiva y usuario de aplicación (preparación manual posterior)
 
@@ -211,16 +244,18 @@ No seleccionar ni copiar `password`; no hacen falta consultas sobre hashes.
 
 ## Bloqueos y diagnóstico
 
-- Faltan confirmar instalación/estado MySQL, base nueva, esquema, usuario,
-  contraseña y disponibilidad de puertos; nada de ello se ha creado o iniciado.
+- Para reproducir en otro equipo, confirmar MySQL, base exclusiva, esquema,
+  usuario de aplicación, variables y disponibilidad de puertos. La configuración
+  efectiva utilizada en la validación manual no fue proporcionada.
 - Sin variables, Auth/Gateway deben fallar al arrancar, no usar secretos por defecto.
 - `Schema-validation` indica esquema ausente/incompatible: revisar solo la base nueva.
 - 503 del Gateway: comprobar AUTH-SERVICE en Eureka y esperar descubrimiento.
 - 401 con token recién emitido: comprobar mismo JWT_SECRET en ambos procesos
   sin imprimirlo, URL de login utilizada y reloj del equipo.
 - Ventas sigue dependiendo de usuario-service: estas pruebas no validan compras.
-- La configuración de rutas y seguridad se ha inspeccionado estáticamente;
-  no hay todavía resultado de HTTP, JDBC ni descubrimiento en ejecución.
+- Hay resultados HTTP y persistencia MySQL confirmados por el desarrollador
+  en la sección de resultados. El recorrido por Gateway y el descubrimiento
+  Eureka no cuentan con una confirmación específica en el informe recibido.
 
 Al finalizar una futura sesión, detener cada proceso con Ctrl+C. No eliminar
 datos ni ejecutar limpiezas globales. Retirar las variables de la consola padre:

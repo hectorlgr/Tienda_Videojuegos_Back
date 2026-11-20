@@ -1,4 +1,9 @@
 @echo off
+if /i "%~1"=="identidad" (
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0iniciar_identidad.ps1"
+    pause
+    exit /b
+)
 title Orquestador de Microservicios - Ferreteria Online
 cls
 echo =====================================================================

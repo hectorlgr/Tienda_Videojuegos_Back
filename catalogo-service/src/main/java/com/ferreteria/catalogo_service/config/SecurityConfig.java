@@ -50,6 +50,9 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/api/productos/rawg/buscar", "/api/productos/rawg/{rawgId}")
+                        .hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET,
                                 "/api/productos", "/api/productos/{id}",
                                 "/api/productos/v3/api-docs", "/api/productos/v3/api-docs/**",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()

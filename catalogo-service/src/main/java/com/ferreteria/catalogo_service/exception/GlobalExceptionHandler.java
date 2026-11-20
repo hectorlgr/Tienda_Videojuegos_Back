@@ -22,6 +22,18 @@ import jakarta.persistence.PessimisticLockException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(RawgException.class)
+    public ResponseEntity<java.util.Map<String, Object>> handleRawg(RawgException ex,
+            HttpServletRequest request) {
+        return ResponseEntity.status(ex.getStatus()).body(java.util.Map.of(
+                "timestamp", OffsetDateTime.now().toString(),
+                "status", ex.getStatus().value(),
+                "error", ex.getStatus().getReasonPhrase(),
+                "code", ex.getCode(),
+                "message", ex.getMessage(),
+                "path", request.getRequestURI()));
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());

@@ -15,6 +15,9 @@ import com.ferreteria.catalogo_service.model.CategoriaProducto;
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
+    @Query("select p.rawgId from Producto p where p.rawgId in :ids")
+    List<Long> findRawgIdsExistentes(@Param("ids") List<Long> ids);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Producto p where p.id = :id")
     Optional<Producto> findByIdForUpdate(@Param("id") Long id);

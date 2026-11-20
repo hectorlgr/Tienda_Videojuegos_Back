@@ -51,6 +51,10 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // PRODUCTOS (CATÁLOGO)
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/productos/rawg/buscar",
+                                                                "/api/productos/rawg/{rawgId}")
+                                                .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.GET, "/api/productos", "/api/productos/*")
                                                 .permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/productos").hasRole("ADMINISTRADOR")

@@ -51,7 +51,7 @@ también requiere Bearer ADMINISTRADOR para escribir. Eso no valida los permisos
 del Gateway: repetir después con 9090. El POST y los GET no llaman
 a inventario-service. El PUT administrativo tampoco llama a Inventario;
 sus ejemplos están en `PRUEBAS_ACTUALIZACION_CATALOGO.md`.
-DELETE sigue heredado y queda fuera de estas pruebas.
+DELETE realiza baja lógica local; su comprobación se detalla al final.
 
 ## Cuatro POST de ejemplo
 
@@ -139,3 +139,39 @@ en listados públicos, tampoco con categoria=FIGURA.
 La revisión estática y compilación no sustituyen estas verificaciones
 funcionales. No se crearon pruebas unitarias nuevas ni se ejecutó la suite
 heredada; su adaptación a los DTO y firmas nuevos queda pendiente.
+
+## DELETE: baja lógica local (pruebas pendientes)
+
+No se ejecutaron estas peticiones durante la implementación. Elegir un producto
+de prueba existente y habilitado; no hace falta crear nuevos registros.
+Primero baseUrl=http://localhost:9091, después repetir con 9090.
+
+1. GET `{{baseUrl}}/api/productos/{{productoId}}`: guardar los datos originales,
+   incluidos id, categoria, precios, oferta, stock, rawgId y metadatos.
+2. DELETE de esa misma URL, sin body, con Bearer ADMINISTRADOR:
+   esperar **204 y cuerpo vacío**.
+3. Repetir exactamente el DELETE: esperar **204 y cuerpo vacío**. El producto
+   ya deshabilitado no se vuelve a modificar.
+4. GET por ID: **404**. Listado y filtro de categoría no deben incluirlo.
+5. Para comprobar conservación antes de reactivarlo, revisar la fila mediante
+   una consulta de solo lectura en Workbench:
+
+   ```sql
+   SELECT * FROM checkpoint_store_catalogo.productos WHERE id = <ID_DE_PRUEBA>;
+   ```
+
+   Sustituir el marcador por el ID real. Debe existir la misma fila y únicamente
+   habilitado debe haber cambiado a 0; stock, oferta y demás valores permanecen.
+   Esta comprobación antes del PUT evita que la reactivación oculte un cambio
+   accidental al reenviar valores.
+6. PUT con el estado completo original y habilitado=true: **200**. El GET vuelve
+   a devolver **200**. No enviar id ni rawgId en el DTO de edición.
+7. DELETE de un ID confirmado inexistente, con administrador: **404**.
+8. DELETE de un producto habilitado sin token o con JWT inválido: **401**.
+   Con CLIENTE o VENDEDOR: **403**. Verificar mediante GET que sigue habilitado.
+
+El servicio busca con findById y trabaja en una transacción local. Solo asigna
+habilitado=false cuando estaba activo; no borra filas ni cambia stock, y no
+necesita que inventario-service esté iniciado. La protección de Gateway y
+Catálogo permanece ADMINISTRADOR. Las pruebas manuales de DELETE/PUT sí
+cambiarán la visibilidad cuando se ejecuten; no se ejecutaron en esta tarea.

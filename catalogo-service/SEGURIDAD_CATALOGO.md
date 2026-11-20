@@ -25,7 +25,7 @@ CSRF está deshabilitado porque se utiliza exclusivamente Bearer.
 | GET /api/productos/{id} | Público |
 | POST /api/productos | ADMINISTRADOR |
 | PUT /api/productos/{id} | ADMINISTRADOR; edición local de productos |
-| DELETE /api/productos/{id} | ADMINISTRADOR; implementación heredada |
+| DELETE /api/productos/{id} | ADMINISTRADOR; baja lógica local e idempotente |
 | POST, PUT, PATCH, DELETE /api/productos/** | ADMINISTRADOR, también subrutas |
 | GET /api/productos/v3/api-docs y subrutas | Público |
 | GET /swagger-ui.html y /swagger-ui/** | Público |
@@ -122,8 +122,9 @@ baseUrl=http://localhost:9090, Catálogo registrado en Eureka y Gateway disponib
 
 Para PUT con administrador enviar el DTO completo válido:
 `{"nombre":"Comprobación","categoria":"ACCESORIO","descripcion":"Sin cambios reales: ID inexistente","marca":"Marca","precio":1000,"stock":0,"enOferta":false,"habilitado":true}`.
-No usar DELETE sobre un producto real para esta comprobación: conserva
-el flujo heredado que llama a Inventario.
+Para comprobar la baja lógica con un producto de prueba existente, seguir
+la sección DELETE de PRUEBAS_CATALOGO_POSTMAN.md. No hay llamadas a Inventario;
+el stock se conserva y el producto puede reactivarse mediante PUT.
 
 PATCH no está implementado: ADMINISTRADOR supera la autorización en 9091,
 pero no garantiza éxito funcional (el handler heredado puede devolver error).

@@ -49,9 +49,9 @@ POST y GET de `/api/productos` ya utilizan los campos nuevos de CheckPoint Store
 El POST usa ProductoCrearRequestDto; el DTO ProductoRequestDto sigue reservado
 al PUT administrativo y reutiliza las validaciones del DTO de creación.
 POST y PUT comparten el mapeo explícito de los campos editables, conservando
-id y rawgId en edición. Las llamadas HTTP heredadas
-a Inventario siguen pendientes de la consolidación; crear y consultar productos
-no las ejecuta. Véase `PRUEBAS_CATALOGO_POSTMAN.md` para los contratos y ejemplos.
+id y rawgId en edición. DELETE ahora deshabilita localmente sin modificar stock
+ni llamar a Inventario; devuelve 204 también si ya estaba oculto.
+Véase `PRUEBAS_CATALOGO_POSTMAN.md` para los contratos y ejemplos.
 Hibernate validate no sustituye la revisión de CHECK y defaults con
 SHOW CREATE TABLE.
 

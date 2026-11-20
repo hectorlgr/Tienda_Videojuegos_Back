@@ -125,18 +125,18 @@ public class ProductoController {
         return ResponseEntity.ok(ProductoResponseDto.from(productoActualizado));
     }
 
-    // DELETE: Eliminar un producto
-    @Operation(summary = "Eliminar producto", description = "Elimina un producto del catálogo utilizando su ID.")
+    // DELETE: Baja lógica local
+    @Operation(summary = "Deshabilitar producto", description = "Oculta el producto sin eliminarlo ni modificar su stock. Si ya estaba oculto, devuelve igualmente 204.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Producto eliminado exitosamente"),
+            @ApiResponse(responseCode = "204", description = "Producto deshabilitado o ya deshabilitado", content = @Content),
             @ApiResponse(responseCode = "404", description = "El producto a eliminar no fue encontrado", content = @Content)
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarProducto(
             @Parameter(description = "ID del producto a eliminar", example = "1") @PathVariable Long id) {
-        logger.info("DELETE /api/productos/{} - Solicitud para eliminar producto", id);
+        logger.info("DELETE /api/productos/{} - Solicitud de baja lógica", id);
         productoService.eliminarProducto(id);
-        logger.info("Producto ID {} eliminado exitosamente", id);
+        logger.info("Baja lógica completada para producto ID {}", id);
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

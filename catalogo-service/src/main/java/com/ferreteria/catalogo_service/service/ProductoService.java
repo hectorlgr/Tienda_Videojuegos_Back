@@ -1,6 +1,5 @@
 package com.ferreteria.catalogo_service.service;
 
-import com.ferreteria.catalogo_service.exception.BadRequestException;
 import com.ferreteria.catalogo_service.exception.ResourceNotFoundException;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
@@ -14,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 
@@ -26,7 +24,6 @@ public class ProductoService {
     private static final Logger logger = LoggerFactory.getLogger(ProductoService.class);
 
     private final ProductoRepository productoRepository;
-    private final WebClient.Builder webClientBuilder;
     private final Validator validator;
 
     public List<Producto> obtenerTodos(CategoriaProducto categoria) {
@@ -111,26 +108,15 @@ public class ProductoService {
         return productoRepository.save(productoExistente);
     }
 
-    // Método para deshabilitar un producto (baja lógica) y resetear su stock en el
-    // inventario
+    // Baja lógica local e idempotente; conserva stock y demás datos.
+    @Transactional
     public void eliminarProducto(Long id) {
-        logger.info("Iniciando deshabilitación y reseteo de stock para ID: {}", id);
-
-        Producto productoExistente = obtenerPorId(id);
-        productoExistente.setHabilitado(false);
-        productoRepository.save(productoExistente);
-
-        try {
-            webClientBuilder.build().put()
-                    .uri("http://inventario-service/api/inventario/reset/" + id)
-                    .retrieve()
-                    .bodyToMono(Void.class)
-                    .block();
-            logger.info("Stock reseteado en inventario-service para producto ID: {}", id);
-        } catch (Exception e) {
-            logger.error("No se pudo resetear el stock: {}", e.getMessage());
-            throw new BadRequestException(
-                    "El producto fue deshabilitado, pero falló el reseteo de stock: " + e.getMessage());
+        logger.info("Solicitando baja lógica del producto ID: {}", id);
+        Producto productoExistente = productoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+        if (Boolean.TRUE.equals(productoExistente.getHabilitado())) {
+            productoExistente.setHabilitado(false);
+            productoRepository.save(productoExistente);
         }
     }
 

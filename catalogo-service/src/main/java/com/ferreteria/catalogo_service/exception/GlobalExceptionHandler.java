@@ -10,9 +10,34 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    public ResponseEntity<ApiErrorResponse> handleValidation(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Datos inválidos: revise nombre, categoría, longitudes, precio, oferta y stock.",
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiErrorResponse> handleFormat(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Formato inválido: revise el JSON, los números enteros y los valores de categoría.",
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleIntegrity(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Los datos no cumplen las restricciones del producto.", request.getRequestURI());
+    }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiErrorResponse> handleBadRequest(BadRequestException ex,
@@ -33,7 +58,7 @@ public class GlobalExceptionHandler {
         if (status == null) {
             status = HttpStatus.BAD_GATEWAY;
         }
-        return buildResponse(status, "Error de comunicación con servicio externo: " + ex.getMessage(),
+        return buildResponse(status, "Error de comunicación con servicio externo.",
                 request.getRequestURI());
     }
 
@@ -41,14 +66,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleWebClientRequest(WebClientRequestException ex,
             HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_GATEWAY,
-                "No se pudo establecer conexión con el servicio externo: " + ex.getMessage(),
+                "No se pudo establecer conexión con el servicio externo.",
                 request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneralException(Exception ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Ocurrió un error inesperado: " + ex.getMessage(), request.getRequestURI());
+                "Ocurrió un error inesperado.", request.getRequestURI());
     }
 
     private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status, String message, String path) {

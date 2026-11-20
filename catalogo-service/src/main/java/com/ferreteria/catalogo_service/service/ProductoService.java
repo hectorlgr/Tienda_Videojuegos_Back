@@ -4,6 +4,10 @@ import com.ferreteria.catalogo_service.exception.BadRequestException;
 import com.ferreteria.catalogo_service.exception.ResourceNotFoundException;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
+import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
+import com.ferreteria.catalogo_service.model.CategoriaProducto;
+import jakarta.validation.Validator;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,34 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final WebClient.Builder webClientBuilder;
+    private final Validator validator;
+
+    public List<Producto> obtenerTodos(CategoriaProducto categoria) {
+        return categoria == null ? obtenerTodos()
+                : productoRepository.findByCategoriaAndHabilitadoTrue(categoria);
+    }
+
+    public Producto crearProducto(ProductoCrearRequestDto dto) {
+        var errores = validator.validate(dto);
+        if (!errores.isEmpty()) {
+            throw new ConstraintViolationException(errores);
+        }
+        // MySQL genera el ID. rawgId se reserva para la futura importación.
+        Producto producto = new Producto();
+        producto.setNombre(dto.getNombre());
+        producto.setCategoria(dto.getCategoria());
+        producto.setDescripcion(dto.getDescripcion());
+        producto.setMarca(dto.getMarca());
+        producto.setPlataforma(dto.getPlataforma());
+        producto.setGenero(dto.getGenero());
+        producto.setImagenUrl(dto.getImagenUrl());
+        producto.setPrecio(dto.getPrecio());
+        producto.setPrecioOferta(dto.getPrecioOferta());
+        producto.setEnOferta(dto.getEnOferta());
+        producto.setStock(dto.getStock());
+        producto.setHabilitado(dto.getHabilitado());
+        return guardarProducto(producto);
+    }
 
     // Método para obtener todos los productos habilitados
     public List<Producto> obtenerTodos() {
@@ -44,7 +76,10 @@ public class ProductoService {
         logger.info("Registrando nuevo producto: {}", producto.getNombre());
         logger.debug("Precio a registrar: {}", producto.getPrecio());
 
-        producto.setHabilitado(true);
+        var errores = validator.validate(producto);
+        if (!errores.isEmpty()) {
+            throw new ConstraintViolationException(errores);
+        }
         Producto productoGuardado = productoRepository.save(producto);
         logger.debug("Producto guardado temporalmente con ID interno: {}", productoGuardado.getId());
 

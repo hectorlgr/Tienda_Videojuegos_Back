@@ -5,12 +5,15 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import com.ferreteria.catalogo_service.model.Producto;
+import com.ferreteria.catalogo_service.model.CategoriaProducto;
 
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
     // Devuelve solo los productos que tienen habilitado = true
     List<Producto> findByHabilitadoTrue();
+
+    List<Producto> findByCategoriaAndHabilitadoTrue(CategoriaProducto categoria);
 
     // Buscar por ID pero solo si está habilitado
     java.util.Optional<Producto> findByIdAndHabilitadoTrue(Long id);

@@ -22,8 +22,8 @@ echo.
 :: ---------------------------------------------------------------------
 echo [PASO 2/3] Lanzando nucleo de Microservicios en paralelo...
 
-cd /d "%~dp0\auth-service"
-start "AUTH-SERVICE (Puerto 9096)" cmd /k "mvnw spring-boot:run"
+cd /d "%~dp0\identidad-service"
+start "IDENTIDAD-SERVICE (Puerto 9096)" cmd /k "mvnw spring-boot:run"
 
 cd /d "%~dp0\usuario-service"
 start "USUARIO-SERVICE (Puerto 9092)" cmd /k "mvnw spring-boot:run"

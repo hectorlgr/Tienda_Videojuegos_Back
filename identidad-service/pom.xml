@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.ferreteria</groupId>
-	<artifactId>auth-service</artifactId>
+	<artifactId>identidad-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
+	<name>identidad-service</name>
 	<description/>
 	<url/>
 	<licenses>

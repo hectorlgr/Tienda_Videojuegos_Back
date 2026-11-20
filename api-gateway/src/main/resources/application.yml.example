@@ -22,12 +22,12 @@ spring:
           enabled: false
       routes:
         - id: auth-admin-usuarios
-          uri: lb://auth-service
+          uri: lb://identidad-service
           predicates:
             - Path=/api/v1/admin/usuarios
             - Method=POST
         - id: auth-perfil
-          uri: lb://auth-service
+          uri: lb://identidad-service
           predicates:
             - Path=/api/v1/usuarios/me
             - Method=GET,PATCH
@@ -39,8 +39,8 @@ spring:
           uri: lb://pedido-service
           predicates:
             - Path=/api/pedidos/**
-        - id: auth-service
-          uri: lb://auth-service
+        - id: identidad-service
+          uri: lb://identidad-service
           predicates:
             - Path=/auth/**
         - id: venta-service

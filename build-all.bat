@@ -13,8 +13,8 @@ cd api-gateway
 call .\mvnw clean package -DskipTests
 cd ..
 
-echo Construyendo auth-service...
-cd auth-service
+echo Construyendo identidad-service...
+cd identidad-service
 call .\mvnw clean package -DskipTests
 cd ..
 

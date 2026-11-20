@@ -59,7 +59,7 @@ $credential = New-Object System.Net.NetworkCredential('', $secret)
 $env:BOOTSTRAP_ADMIN_PASSWORD = $credential.Password
 
 try {
-    Push-Location auth-service
+    Push-Location identidad-service
     try {
         .\mvnw.cmd "-Dmaven.test.skip=true" spring-boot:run
     } finally {

@@ -57,7 +57,7 @@ La respuesta contiene exclusivamente `id`, `nombre`, `email`, `telefono`,
 Una cuenta inexistente devuelve 404; un JWT ausente, inválido o sin `userId`
 válido devuelve 401. No se implementa consulta por ID arbitrario.
 
-El ejemplo del Gateway dirige GET y PATCH de la ruta exacta a `lb://auth-service`;
+El ejemplo del Gateway dirige GET y PATCH de la ruta exacta a `lb://identidad-service`;
 las rutas heredadas de Usuarios permanecen intactas. El Bearer se conserva y
 Auth verifica otra vez firma HS256, validez temporal, expiración presente e ID.
 

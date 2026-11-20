@@ -56,7 +56,7 @@ detenerse y confirmar su origen; no reutilizar ninguna base de ferretería.
 Un administrador de MySQL deberá:
 
 1. Crear la base con `utf8mb4` y `utf8mb4_unicode_ci`.
-2. Crear la tabla `users` utilizando el DDL de `auth-service/ESQUEMA_IDENTIDAD.md`.
+2. Crear la tabla `users` utilizando el DDL de `identidad-service/ESQUEMA_IDENTIDAD.md`.
 3. Crear en Workbench > Administration > Users and Privileges un usuario local
    `checkpoint_app` con contraseña propia, aleatoria y no vacía. Restringir el
    host al computador local, no `%`. Confirmar el host de cuenta que corresponda
@@ -85,13 +85,13 @@ Los archivos locales ya están preparados en este equipo y están ignorados.
 En otro equipo, desde la raíz del repositorio, copiar **solo si faltan**:
 
 ```powershell
-if (!(Test-Path 'auth-service/src/main/resources/application.properties')) {
-    Copy-Item 'auth-service/src/main/resources/application.properties.example' 'auth-service/src/main/resources/application.properties'
+if (!(Test-Path 'identidad-service/src/main/resources/application.properties')) {
+    Copy-Item 'identidad-service/src/main/resources/application.properties.example' 'identidad-service/src/main/resources/application.properties'
 }
 if (!(Test-Path 'api-gateway/src/main/resources/application.yml')) {
     Copy-Item 'api-gateway/src/main/resources/application.yml.example' 'api-gateway/src/main/resources/application.yml'
 }
-git check-ignore -v auth-service/src/main/resources/application.properties api-gateway/src/main/resources/application.yml
+git check-ignore -v identidad-service/src/main/resources/application.properties api-gateway/src/main/resources/application.yml
 ```
 
 No usar `git add -f` para estas configuraciones. Los `.example` son públicos y
@@ -149,10 +149,10 @@ no se registra a sí mismo ni busca otros servidores.
 2. Auth:
 
 ```powershell
-Start-Process powershell.exe -WorkingDirectory "$repo\auth-service" -ArgumentList '-NoExit', '-Command', '.\mvnw.cmd "-Dmaven.test.skip=true" spring-boot:run'
+Start-Process powershell.exe -WorkingDirectory "$repo\identidad-service" -ArgumentList '-NoExit', '-Command', '.\mvnw.cmd "-Dmaven.test.skip=true" spring-boot:run'
 ```
 
-Esperar validación del esquema y registro `AUTH-SERVICE` en Eureka, puerto 9096.
+Esperar validación del esquema y registro `IDENTIDAD-SERVICE` en Eureka, puerto 9096.
 
 3. Gateway:
 
@@ -219,7 +219,7 @@ Casos negativos:
 Registrar B con otro correo ficticio y guardar su token por separado.
 1. GET con token A y token B devuelve IDs distintos.
 2. Con token A, enviar PATCH con un teléfono diferente y añadir al JSON
-   `"id": <ID de B>`, `"email": "otro@example.test"`, `"role": "ADMIN"`.
+   `"id": <ID de B>`, `"email": "otro@example.test"`, `"role": "ADMINISTRADOR"`.
    Esos campos no pertenecen al DTO: si se ignoran, solo cambia el teléfono de A;
    si el deserializador los rechaza, habrá 400 y ningún cambio.
 3. GET con B debe conservar su perfil intacto. Nombre, correo y rol de A no cambian.
@@ -249,7 +249,7 @@ No seleccionar ni copiar `password`; no hacen falta consultas sobre hashes.
   efectiva utilizada en la validación manual no fue proporcionada.
 - Sin variables, Auth/Gateway deben fallar al arrancar, no usar secretos por defecto.
 - `Schema-validation` indica esquema ausente/incompatible: revisar solo la base nueva.
-- 503 del Gateway: comprobar AUTH-SERVICE en Eureka y esperar descubrimiento.
+- 503 del Gateway: comprobar IDENTIDAD-SERVICE en Eureka y esperar descubrimiento.
 - 401 con token recién emitido: comprobar mismo JWT_SECRET en ambos procesos
   sin imprimirlo, URL de login utilizada y reloj del equipo.
 - Ventas sigue dependiendo de usuario-service: estas pruebas no validan compras.

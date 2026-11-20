@@ -43,7 +43,7 @@ el desarrollador; no demuestran el funcionamiento HTTP de este endpoint nuevo.
 1. Mantener bootstrap deshabilitado: Auth normal, sin perfil `bootstrap-admin`
    ni `BOOTSTRAP_ADMIN_ENABLED=true`. No hace falta repetir la inicialización.
 2. Reiniciar Auth y Gateway después de aplicar los cambios. La ruta local del
-   Gateway y su `.example` apuntan a `lb://auth-service`. No cambiar JWT_SECRET.
+   Gateway y su `.example` apuntan a `lb://identidad-service`. No cambiar JWT_SECRET.
 3. Obtener el token del administrador existente mediante el login normal.
 4. POST `http://127.0.0.1:9090/api/v1/admin/usuarios`, Authorization > Bearer Token,
    Body > raw > JSON, Content-Type `application/json`:

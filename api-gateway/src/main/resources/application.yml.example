@@ -21,6 +21,11 @@ spring:
         locator:
           enabled: false
       routes:
+        - id: auth-admin-usuarios
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/admin/usuarios
+            - Method=POST
         - id: auth-perfil
           uri: lb://auth-service
           predicates:

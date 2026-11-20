@@ -1,6 +1,8 @@
 package com.ferreteria.catalogo_service.service;
 
 import com.ferreteria.catalogo_service.exception.ResourceNotFoundException;
+import com.ferreteria.catalogo_service.exception.BadRequestException;
+import com.ferreteria.catalogo_service.exception.ConflictException;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
 import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
@@ -77,6 +79,9 @@ public class ProductoService {
 
     // Método para guardar un nuevo producto
     public Producto guardarProducto(Producto producto) {
+        if (producto.getId() != null) {
+            throw new BadRequestException("El alta no admite un ID existente; utilice la edición del producto.");
+        }
         logger.info("Registrando nuevo producto: {}", producto.getNombre());
         logger.debug("Precio a registrar: {}", producto.getPrecio());
 
@@ -98,8 +103,10 @@ public class ProductoService {
         if (!erroresEntrada.isEmpty()) {
             throw new ConstraintViolationException(erroresEntrada);
         }
-        Producto productoExistente = productoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+        Producto productoExistente = obtenerParaActualizar(id);
+        if (!productoExistente.getStock().equals(dto.getStockEsperado())) {
+            throw new ConflictException("El stock cambió desde la consulta. Recargue el producto antes de editar.");
+        }
         aplicarCamposEditables(productoExistente, dto);
         var erroresProducto = validator.validate(productoExistente);
         if (!erroresProducto.isEmpty()) {
@@ -112,18 +119,53 @@ public class ProductoService {
     @Transactional
     public void eliminarProducto(Long id) {
         logger.info("Solicitando baja lógica del producto ID: {}", id);
-        Producto productoExistente = productoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+        Producto productoExistente = obtenerParaActualizar(id);
         if (Boolean.TRUE.equals(productoExistente.getHabilitado())) {
             productoExistente.setHabilitado(false);
             productoRepository.save(productoExistente);
         }
     }
 
-    // Método para que otros servicios deshabiliten productos automáticamente
+    private Producto obtenerParaActualizar(Long id) {
+        return productoRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+    }
+
+    @Transactional
+    public Producto incrementarStock(Long id, Integer cantidad) {
+        validarCantidad(cantidad);
+        Producto producto = obtenerParaActualizar(id);
+        long nuevoStock = (long) producto.getStock() + cantidad;
+        if (nuevoStock > Integer.MAX_VALUE) {
+            throw new ConflictException("La entrada supera el máximo de stock permitido.");
+        }
+        producto.setStock((int) nuevoStock);
+        return productoRepository.save(producto);
+    }
+
+    // Operación local reutilizable; la futura integración con Ventas debe autenticar
+    // al consumidor y definir su contrato de compra, reintentos y disponibilidad.
+    @Transactional
+    public Producto descontarStock(Long id, Integer cantidad) {
+        validarCantidad(cantidad);
+        Producto producto = obtenerParaActualizar(id);
+        if (producto.getStock() < cantidad) {
+            throw new ConflictException("Stock insuficiente para el producto ID " + id);
+        }
+        producto.setStock(producto.getStock() - cantidad);
+        return productoRepository.save(producto);
+    }
+
+    private void validarCantidad(Integer cantidad) {
+        if (cantidad == null || cantidad <= 0) {
+            throw new BadRequestException("La cantidad debe ser un entero positivo.");
+        }
+    }
+
+    // Método heredado: no se utiliza desde los movimientos de stock.
+    @Transactional
     public void marcarComoAgotado(Long id) {
-        Producto producto = productoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+        Producto producto = obtenerParaActualizar(id);
 
         if (producto.getHabilitado()) {
             producto.setHabilitado(false);
@@ -133,12 +175,11 @@ public class ProductoService {
     }
 
     // Método para reactivar un producto (por ejemplo, cuando vuelve a tener stock)
+    @Transactional
     public void habilitarProducto(Long id) {
         logger.info("Iniciando habilitación para el producto ID: {}", id);
 
-        Producto producto = productoRepository.findById(id)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Producto no encontrado en la BD general con ID: " + id));
+        Producto producto = obtenerParaActualizar(id);
 
         if (!producto.getHabilitado()) {
             producto.setHabilitado(true);

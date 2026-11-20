@@ -24,6 +24,8 @@ CSRF está deshabilitado porque se utiliza exclusivamente Bearer.
 | GET /api/productos?categoria=... | Público; query no altera autorización |
 | GET /api/productos/{id} | Público |
 | POST /api/productos | ADMINISTRADOR |
+| POST /api/productos/{id}/stock/entradas | ADMINISTRADOR, también en Gateway |
+| POST /api/productos/{id}/stock/salidas | ADMINISTRADOR, también en Gateway |
 | PUT /api/productos/{id} | ADMINISTRADOR; edición local de productos |
 | DELETE /api/productos/{id} | ADMINISTRADOR; baja lógica local e idempotente |
 | POST, PUT, PATCH, DELETE /api/productos/** | ADMINISTRADOR, también subrutas |
@@ -34,7 +36,7 @@ CSRF está deshabilitado porque se utiliza exclusivamente Bearer.
 
 Se permite el despacho ERROR interno para conservar errores funcionales,
 sin publicar una ruta externa /error. No hay controlador PATCH ni rutas
-HTTP de stock/agotar/habilitar en este módulo actualmente: la regla protege
+HTTP de agotar/habilitar en este módulo actualmente: la regla protege
 esos métodos/subrutas sin crear funcionalidades. Rutas nuevas fuera del
 espacio de productos quedan denegadas hasta revisar su política explícita.
 
@@ -121,7 +123,7 @@ baseUrl=http://localhost:9090, Catálogo registrado en Eureka y Gateway disponib
 | GET /api/productos | Bearer inválido | 401 |
 
 Para PUT con administrador enviar el DTO completo válido:
-`{"nombre":"Comprobación","categoria":"ACCESORIO","descripcion":"Sin cambios reales: ID inexistente","marca":"Marca","precio":1000,"stock":0,"enOferta":false,"habilitado":true}`.
+`{"nombre":"Comprobación","categoria":"ACCESORIO","descripcion":"Sin cambios reales: ID inexistente","marca":"Marca","precio":1000,"stock":0,"stockEsperado":0,"enOferta":false,"habilitado":true}`.
 Para comprobar la baja lógica con un producto de prueba existente, seguir
 la sección DELETE de PRUEBAS_CATALOGO_POSTMAN.md. No hay llamadas a Inventario;
 el stock se conserva y el producto puede reactivarse mediante PUT.
@@ -142,3 +144,8 @@ El cuerpo válido del POST puede ser cualquiera de los cuatro ejemplos de
 PRUEBAS_CATALOGO_POSTMAN.md. La prueba positiva 201 inserta un producto cuando
 se ejecute manualmente; no se ejecutó durante esta implementación.
 Compilar y revisar reglas no sustituye la validación HTTP de esta matriz.
+
+Gateway incorpora exclusivamente las dos reglas POST de entradas/salidas de
+stock para ADMINISTRADOR, manteniendo denegadas otras subrutas no autorizadas.
+La ruta existente /api/productos/** ya las enruta a Catálogo. No cambian
+Identidad ni permisos de CLIENTE/VENDEDOR. Véase PRUEBAS_STOCK_CATALOGO.md.

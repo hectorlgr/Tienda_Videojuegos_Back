@@ -15,14 +15,30 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler({PessimisticLockingFailureException.class, LockTimeoutException.class,
+            PessimisticLockException.class})
+    public ResponseEntity<ApiErrorResponse> handleLockConflict(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT,
+                "El producto está siendo modificado. Consulte su estado antes de reintentar.",
+                request.getRequestURI());
+    }
+
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<ApiErrorResponse> handleValidation(Exception ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST,
-                "Datos inválidos: revise nombre, categoría, longitudes, precio, oferta y stock.",
+                "Datos inválidos: revise nombre, categoría, longitudes, precio, oferta, stock, stockEsperado y cantidad.",
                 request.getRequestURI());
     }
 

@@ -54,6 +54,10 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.GET, "/api/productos", "/api/productos/*")
                                                 .permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/productos").hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.POST,
+                                                                "/api/productos/*/stock/entradas",
+                                                                "/api/productos/*/stock/salidas")
+                                                .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.PUT, "/api/productos/*").hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.DELETE, "/api/productos/*").hasRole("ADMINISTRADOR")
 

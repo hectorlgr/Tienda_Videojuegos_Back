@@ -48,6 +48,10 @@ MySQL representa BOOLEAN como TINYINT(1).
 POST y GET de `/api/productos` ya utilizan los campos nuevos de CheckPoint Store.
 El POST usa ProductoCrearRequestDto; el DTO ProductoRequestDto sigue reservado
 al PUT administrativo y reutiliza las validaciones del DTO de creación.
+PUT requiere además stockEsperado: si el stock cambió respecto al valor leído,
+devuelve 409 antes de modificar campos. Los escritores de registros existentes
+comparten bloqueo pesimista por fila. Los movimientos administrativos se
+describen en PRUEBAS_STOCK_CATALOGO.md y no requieren cambios de tablas.
 POST y PUT comparten el mapeo explícito de los campos editables, conservando
 id y rawgId en edición. DELETE ahora deshabilita localmente sin modificar stock
 ni llamar a Inventario; devuelve 204 también si ya estaba oculto.

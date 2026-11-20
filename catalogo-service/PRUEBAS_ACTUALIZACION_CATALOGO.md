@@ -4,6 +4,11 @@ Ejemplos preparados, no ejecutados durante la implementación.
 
 ## Contrato
 
+**CAMBIO OBLIGATORIO DEL PUT:** ahora requiere `stockEsperado` (entero no
+negativo), además de `stock`. Es el valor leído antes de editar, no el nuevo
+stock deseado. Si falta/null/negativo: 400. Si no coincide con el stock actual
+bajo bloqueo: 409, sin modificar ningún campo. POST no cambia.
+
 Authorization: Bearer {{adminToken}} y Content-Type: application/json.
 Usar baseUrl=http://localhost:9091 y repetir después con http://localhost:9090.
 Gateway ya enruta /api/productos/** y permite PUT de un producto solo para
@@ -11,7 +16,7 @@ ADMINISTRADOR; no requiere cambios. Catálogo aplica también esa autorización.
 
 Entrada: ProductoRequestDto, que hereda campos y validaciones de
 ProductoCrearRequestDto. Son obligatorios nombre, categoria, precio, stock,
-enOferta y habilitado. En PUT los tres últimos deben enviarse explícitamente
+enOferta, habilitado y stockEsperado. En PUT deben enviarse explícitamente
 (omitidos o null: 400); POST conserva sus defaults 0/false/true.
 
 PUT representa el estado completo editable, no una edición parcial:
@@ -22,7 +27,8 @@ Precio positivo entero CLP, stock entero no negativo y oferta con precioOferta
 positivo inferior a precio cuando está activa. Se reutilizan también límites
 de longitud y rechazo de números fraccionarios configurados para POST.
 
-El ID de la URL selecciona un registro existente mediante findById, también si
+El ID de la URL selecciona un registro existente mediante findByIdForUpdate
+con bloqueo PESSIMISTIC_WRITE dentro de una transacción, también si
 está deshabilitado. No se crea un producto si no existe. Ni id ni rawgId forman
 parte del DTO ni se asignan en el mapeo; se conservan los valores persistidos.
 La validación precede a save y la edición usa una transacción local. No hay
@@ -33,6 +39,9 @@ Respuesta 200: ProductoResponseDto (sin envoltorio HATEOAS), con todos los
 campos actuales, precioEfectivo y disponible. 404 para ID inexistente con
 entrada válida, 400 para datos inválidos, 401 sin JWT válido y 403 para
 CLIENTE/VENDEDOR. El GET público de un producto oculto sigue devolviendo 404.
+409 indica stock desactualizado o conflicto de bloqueo. Ante stock desactualizado
+recargar y revisar la edición, no reemplazar automáticamente stockEsperado
+para forzar un formulario viejo. No se modifica el esquema MySQL.
 
 ## 1. Editar un producto
 
@@ -54,17 +63,21 @@ PUT `{{baseUrl}}/api/productos/{{productoId}}`
   "precioOferta": null,
   "enOferta": false,
   "stock": 7,
+  "stockEsperado": 5,
   "habilitado": true
 }
 ```
 
-Esperado: 200, mismo id y rawgId, stock=7, precioEfectivo=59990 y disponible=true.
+Este ejemplo supone stock actual=5: sustituir stockEsperado por el valor
+real observado antes de editar. Esperado: 200, mismo id y rawgId, stock=7,
+precioEfectivo=59990 y disponible=true.
 Repetir sobre productos de VIDEOJUEGO, CONSOLA y FIGURA utilizando la categoría
 correspondiente y reenviando sus valores; no necesitan plataforma/genero.
 
 ## 2. Modificar una oferta
 
-Reenviar el cuerpo completo anterior cambiando únicamente:
+Reenviar el cuerpo completo anterior con stockEsperado=7 (si el stock sigue
+siendo 7) y cambiando los campos de oferta:
 
 ```json
 {
@@ -80,12 +93,13 @@ precioEfectivo vuelve a precio.
 
 ## 3. Deshabilitar y volver a habilitar
 
-1. Reenviar el body completo con stock=7 y habilitado=false.
+1. Reenviar el body completo con stock=7, stockEsperado=7 y habilitado=false.
 2. Esperar 200 con stock=7 y disponible=false.
 3. GET por ID: 404; el producto no aparece en el listado ni filtro público.
-4. Sobre el MISMO ID, reenviar el mismo body con habilitado=true y stock=7.
+4. Sobre el MISMO ID, reenviar el mismo body con habilitado=true,
+   stock=7 y stockEsperado=7.
 5. Esperar 200 y volver a comprobar GET: 200; stock sigue siendo 7.
-6. Reenviar body completo con stock=0 y habilitado=true: sigue en los GET
+6. Reenviar body completo con stock=0, stockEsperado=7 y habilitado=true: sigue en los GET
    públicos, con disponible=false.
 
 ## 4. Errores y conservación de datos
@@ -94,7 +108,9 @@ precioEfectivo vuelve a precio.
 - ID confirmado inexistente + body válido: 404 y ninguna nueva fila.
 - Categoría inválida/omitida, precio <= 0, stock < 0, valores fraccionarios,
   oferta activa sin precioOferta o precioOferta >= precio: 400.
-- Omitir stock, enOferta o habilitado: 400.
+- Omitir stock, stockEsperado, enOferta o habilitado: 400.
+- Después de una entrada/salida, enviar el stockEsperado anterior: 409 sin
+  cambiar nombre, precio, stock ni ningún otro campo.
 - Tras un 400, consultar el producto para verificar que conserva sus valores.
 - Comprobar que cambiar solamente habilitado en un body completo no altera
   el stock reenviado ni rawgId. Para un rawgId preexistente no nulo, su

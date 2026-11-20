@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.ferreteria.catalogo_service.Dto.ProductoRequestDto;
 import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
 import com.ferreteria.catalogo_service.Dto.ProductoResponseDto;
+import com.ferreteria.catalogo_service.Dto.MovimientoStockRequestDto;
 import com.ferreteria.catalogo_service.model.CategoriaProducto;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.service.ProductoService;
@@ -107,9 +108,10 @@ public class ProductoController {
     }
 
     // PUT: Actualizar un producto existente
-    @Operation(summary = "Actualizar producto", description = "Modifica los datos de un producto existente identificado por su ID.")
+    @Operation(summary = "Actualizar producto", description = "Requiere stockEsperado. Si difiere del stock actual, devuelve 409 sin modificar el producto.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductoResponseDto.class))),
+            @ApiResponse(responseCode = "409", description = "Stock desactualizado o conflicto de bloqueo", content = @Content),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos", content = @Content),
             @ApiResponse(responseCode = "404", description = "El producto a actualizar no fue encontrado", content = @Content)
     })
@@ -123,6 +125,32 @@ public class ProductoController {
         logger.info("Producto ID {} actualizado correctamente", id);
 
         return ResponseEntity.ok(ProductoResponseDto.from(productoActualizado));
+    }
+
+    @PostMapping("/{id}/stock/entradas")
+    @Operation(summary = "Incrementar stock", description = "Movimiento administrativo local. Solo cambia stock.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Stock actualizado"),
+            @ApiResponse(responseCode = "400", description = "Cantidad inválida"),
+            @ApiResponse(responseCode = "404", description = "Producto inexistente"),
+            @ApiResponse(responseCode = "409", description = "Stock fuera de rango o conflicto de bloqueo")
+    })
+    public ResponseEntity<ProductoResponseDto> incrementarStock(@PathVariable Long id,
+            @Valid @RequestBody MovimientoStockRequestDto dto) {
+        return ResponseEntity.ok(ProductoResponseDto.from(productoService.incrementarStock(id, dto.cantidad())));
+    }
+
+    @PostMapping("/{id}/stock/salidas")
+    @Operation(summary = "Descontar stock", description = "Movimiento administrativo local, sin permitir stock negativo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Stock actualizado"),
+            @ApiResponse(responseCode = "400", description = "Cantidad inválida"),
+            @ApiResponse(responseCode = "404", description = "Producto inexistente"),
+            @ApiResponse(responseCode = "409", description = "Stock insuficiente o conflicto de bloqueo")
+    })
+    public ResponseEntity<ProductoResponseDto> descontarStock(@PathVariable Long id,
+            @Valid @RequestBody MovimientoStockRequestDto dto) {
+        return ResponseEntity.ok(ProductoResponseDto.from(productoService.descontarStock(id, dto.cantidad())));
     }
 
     // DELETE: Baja lógica local

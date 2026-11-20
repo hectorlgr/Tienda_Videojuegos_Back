@@ -40,7 +40,8 @@ POST: Content-Type application/json y Authorization: Bearer {{adminToken}}.
 GET: sin Authorization.
 
 El Gateway conserva GET público y POST/PUT/DELETE restringidos a ADMINISTRADOR.
-No se cambiaron sus reglas. Catálogo ahora valida JWT HS256 también en 9091 y
+Se añadieron únicamente los dos POST administrativos de movimientos de stock.
+Catálogo valida JWT HS256 también en 9091 y
 exige ADMINISTRADOR para POST/PUT/PATCH/DELETE bajo /api/productos.
 El resto de rutas se deniega salvo las excepciones públicas documentadas en
 `SEGURIDAD_CATALOGO.md`. Las cabeceras de rol del cliente no conceden permisos.
@@ -164,13 +165,14 @@ Primero baseUrl=http://localhost:9091, después repetir con 9090.
    habilitado debe haber cambiado a 0; stock, oferta y demás valores permanecen.
    Esta comprobación antes del PUT evita que la reactivación oculte un cambio
    accidental al reenviar valores.
-6. PUT con el estado completo original y habilitado=true: **200**. El GET vuelve
+6. PUT con el estado completo original, stockEsperado igual al stock observado
+   y habilitado=true: **200**. El GET vuelve
    a devolver **200**. No enviar id ni rawgId en el DTO de edición.
 7. DELETE de un ID confirmado inexistente, con administrador: **404**.
 8. DELETE de un producto habilitado sin token o con JWT inválido: **401**.
    Con CLIENTE o VENDEDOR: **403**. Verificar mediante GET que sigue habilitado.
 
-El servicio busca con findById y trabaja en una transacción local. Solo asigna
+El servicio busca con findByIdForUpdate y trabaja en una transacción local. Solo asigna
 habilitado=false cuando estaba activo; no borra filas ni cambia stock, y no
 necesita que inventario-service esté iniciado. La protección de Gateway y
 Catálogo permanece ADMINISTRADOR. Las pruebas manuales de DELETE/PUT sí

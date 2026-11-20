@@ -24,7 +24,7 @@ CSRF está deshabilitado porque se utiliza exclusivamente Bearer.
 | GET /api/productos?categoria=... | Público; query no altera autorización |
 | GET /api/productos/{id} | Público |
 | POST /api/productos | ADMINISTRADOR |
-| PUT /api/productos/{id} | ADMINISTRADOR; implementación heredada |
+| PUT /api/productos/{id} | ADMINISTRADOR; edición local de productos |
 | DELETE /api/productos/{id} | ADMINISTRADOR; implementación heredada |
 | POST, PUT, PATCH, DELETE /api/productos/** | ADMINISTRADOR, también subrutas |
 | GET /api/productos/v3/api-docs y subrutas | Público |
@@ -120,8 +120,8 @@ baseUrl=http://localhost:9090, Catálogo registrado en Eureka y Gateway disponib
 | PATCH /api/productos/{{productoId}} | CLIENTE o VENDEDOR | 403 |
 | GET /api/productos | Bearer inválido | 401 |
 
-Para PUT con administrador enviar el DTO heredado válido:
-`{"nombre":"Comprobación","descripcion":"Sin cambios reales: ID inexistente","marca":"Marca","precio":1000}`.
+Para PUT con administrador enviar el DTO completo válido:
+`{"nombre":"Comprobación","categoria":"ACCESORIO","descripcion":"Sin cambios reales: ID inexistente","marca":"Marca","precio":1000,"stock":0,"enOferta":false,"habilitado":true}`.
 No usar DELETE sobre un producto real para esta comprobación: conserva
 el flujo heredado que llama a Inventario.
 

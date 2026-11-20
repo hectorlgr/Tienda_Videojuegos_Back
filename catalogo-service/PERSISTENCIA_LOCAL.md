@@ -47,7 +47,9 @@ MySQL representa BOOLEAN como TINYINT(1).
 
 POST y GET de `/api/productos` ya utilizan los campos nuevos de CheckPoint Store.
 El POST usa ProductoCrearRequestDto; el DTO ProductoRequestDto sigue reservado
-al PUT heredado, cuya adaptación queda pendiente. Las llamadas HTTP heredadas
+al PUT administrativo y reutiliza las validaciones del DTO de creación.
+POST y PUT comparten el mapeo explícito de los campos editables, conservando
+id y rawgId en edición. Las llamadas HTTP heredadas
 a Inventario siguen pendientes de la consolidación; crear y consultar productos
 no las ejecuta. Véase `PRUEBAS_CATALOGO_POSTMAN.md` para los contratos y ejemplos.
 Hibernate validate no sustituye la revisión de CHECK y defaults con

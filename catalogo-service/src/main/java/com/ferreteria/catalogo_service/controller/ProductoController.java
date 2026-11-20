@@ -109,26 +109,20 @@ public class ProductoController {
     // PUT: Actualizar un producto existente
     @Operation(summary = "Actualizar producto", description = "Modifica los datos de un producto existente identificado por su ID.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Producto.class))),
+            @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductoResponseDto.class))),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos", content = @Content),
             @ApiResponse(responseCode = "404", description = "El producto a actualizar no fue encontrado", content = @Content)
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> actualizarProducto(
+    public ResponseEntity<ProductoResponseDto> actualizarProducto(
             @Parameter(description = "ID del producto a actualizar", example = "1") @PathVariable Long id,
             @Parameter(description = "Nuevos datos del producto") @Valid @RequestBody ProductoRequestDto dto) {
         logger.info("PUT /api/productos/{} - Solicitud para actualizar datos del producto", id);
 
-        Producto producto = new Producto();
-        producto.setNombre(dto.getNombre());
-        producto.setDescripcion(dto.getDescripcion());
-        producto.setMarca(dto.getMarca());
-        producto.setPrecio(dto.getPrecio());
-
-        Producto productoActualizado = productoService.actualizarProducto(id, producto);
+        Producto productoActualizado = productoService.actualizarProducto(id, dto);
         logger.info("Producto ID {} actualizado correctamente", id);
 
-        return ResponseEntity.ok(productoActualizado);
+        return ResponseEntity.ok(ProductoResponseDto.from(productoActualizado));
     }
 
     // DELETE: Eliminar un producto

@@ -5,6 +5,7 @@ import com.ferreteria.catalogo_service.exception.ResourceNotFoundException;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
 import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
+import com.ferreteria.catalogo_service.Dto.ProductoRequestDto;
 import com.ferreteria.catalogo_service.model.CategoriaProducto;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolationException;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
@@ -39,6 +41,12 @@ public class ProductoService {
         }
         // MySQL genera el ID. rawgId se reserva para la futura importación.
         Producto producto = new Producto();
+        aplicarCamposEditables(producto, dto);
+        return guardarProducto(producto);
+    }
+
+    private void aplicarCamposEditables(Producto producto, ProductoCrearRequestDto dto) {
+        // Lista explícita: nunca asignar id ni rawgId desde la edición manual.
         producto.setNombre(dto.getNombre());
         producto.setCategoria(dto.getCategoria());
         producto.setDescripcion(dto.getDescripcion());
@@ -51,7 +59,6 @@ public class ProductoService {
         producto.setEnOferta(dto.getEnOferta());
         producto.setStock(dto.getStock());
         producto.setHabilitado(dto.getHabilitado());
-        return guardarProducto(producto);
     }
 
     // Método para obtener todos los productos habilitados
@@ -86,21 +93,21 @@ public class ProductoService {
         return productoGuardado;
     }
 
-    // Método para actualizar un producto existente
-    public Producto actualizarProducto(Long id, Producto detallesProducto) {
+    // Edición administrativa local, también para productos ocultos.
+    @Transactional
+    public Producto actualizarProducto(Long id, ProductoRequestDto dto) {
         logger.info("Iniciando actualización para el producto ID: {}", id);
-
-        Producto productoExistente = obtenerPorId(id);
-
-        logger.debug("Nuevos datos a aplicar -> Nombre: {}, Marca: {}, Precio: {}",
-                detallesProducto.getNombre(), detallesProducto.getMarca(), detallesProducto.getPrecio());
-
-        productoExistente.setNombre(detallesProducto.getNombre());
-        productoExistente.setDescripcion(detallesProducto.getDescripcion());
-        productoExistente.setMarca(detallesProducto.getMarca());
-        productoExistente.setPrecio(detallesProducto.getPrecio());
-
-        logger.info("Guardando producto actualizado en la base de datos...");
+        var erroresEntrada = validator.validate(dto);
+        if (!erroresEntrada.isEmpty()) {
+            throw new ConstraintViolationException(erroresEntrada);
+        }
+        Producto productoExistente = productoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+        aplicarCamposEditables(productoExistente, dto);
+        var erroresProducto = validator.validate(productoExistente);
+        if (!erroresProducto.isEmpty()) {
+            throw new ConstraintViolationException(erroresProducto);
+        }
         return productoRepository.save(productoExistente);
     }
 

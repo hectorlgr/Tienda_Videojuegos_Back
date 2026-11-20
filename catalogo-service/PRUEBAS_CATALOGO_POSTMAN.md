@@ -49,8 +49,9 @@ La autorización HTTP de esta nueva configuración está pendiente de prueba.
 Para una prueba local aislada se puede usar baseUrl=http://localhost:9091;
 también requiere Bearer ADMINISTRADOR para escribir. Eso no valida los permisos
 del Gateway: repetir después con 9090. El POST y los GET no llaman
-a inventario-service. El PUT y DELETE heredados siguen pendientes de adaptación;
-no forman parte de esta prueba ni se amplió su funcionalidad.
+a inventario-service. El PUT administrativo tampoco llama a Inventario;
+sus ejemplos están en `PRUEBAS_ACTUALIZACION_CATALOGO.md`.
+DELETE sigue heredado y queda fuera de estas pruebas.
 
 ## Cuatro POST de ejemplo
 

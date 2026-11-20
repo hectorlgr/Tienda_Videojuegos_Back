@@ -144,12 +144,19 @@ $env:CATALOGO_DB_USERNAME = 'checkpoint_app'
 $credencial = Get-Credential -UserName $env:CATALOGO_DB_USERNAME -Message 'Credenciales MySQL de catálogo'
 $env:CATALOGO_DB_PASSWORD = $credencial.GetNetworkCredential().Password
 
+# JWT_SECRET debe estar cargado desde la misma fuente privada que Identidad/Gateway.
+if ([string]::IsNullOrWhiteSpace($env:JWT_SECRET)) {
+    throw 'Falta JWT_SECRET compartido. Consulte SEGURIDAD_CATALOGO.md.'
+}
+
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--spring.config.location=file:./src/main/resources/application.properties.example[.properties] --eureka.client.enabled=false"
 ```
 
 El ejemplo conecta a `127.0.0.1:3306/checkpoint_store_catalogo`, puerto HTTP 9091.
 No tiene createDatabaseIfNotExist ni credenciales embebidas. No se necesita
 Eureka, Gateway ni Inventario para validar el arranque. Se requiere Java 21.
+Ahora también se requiere JWT_SECRET compartido, incluso para arrancar solo
+Catálogo. No se cambiaron los scripts BAT ni la configuración privada.
 Esperar el inicio correcto de Spring Boot y ausencia de errores de validación
 JPA. Si falta una tabla o hay tipos incompatibles, corregir el esquema manual
 antes de continuar; no cambiar validate por update/create.

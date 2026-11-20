@@ -33,21 +33,22 @@ La deserialización rechaza decimales para los Integer, sin truncarlos.
 Los errores usan ApiErrorResponse (timestamp, status, error, message, path);
 no se devuelve la excepción interna, SQL ni traza.
 
-## Configuración Postman y seguridad pendiente
+## Configuración Postman y seguridad JWT
 
 Variables: `baseUrl=http://localhost:9090`, `adminToken` con JWT ADMINISTRADOR.
 POST: Content-Type application/json y Authorization: Bearer {{adminToken}}.
 GET: sin Authorization.
 
 El Gateway conserva GET público y POST/PUT/DELETE restringidos a ADMINISTRADOR.
-No se cambiaron sus reglas. Catálogo no incorpora Spring Security ni validación
-JWT propia: si 9091 es accesible, un POST directo puede evitar el Gateway y
-crearse sin JWT. Esto se deduce del código; no se probó mediante peticiones.
-Resolver la protección del acceso directo antes del despliegue (seguridad del
-servicio y/o aislamiento de red según la arquitectura acordada).
+No se cambiaron sus reglas. Catálogo ahora valida JWT HS256 también en 9091 y
+exige ADMINISTRADOR para POST/PUT/PATCH/DELETE bajo /api/productos.
+El resto de rutas se deniega salvo las excepciones públicas documentadas en
+`SEGURIDAD_CATALOGO.md`. Las cabeceras de rol del cliente no conceden permisos.
+La autorización HTTP de esta nueva configuración está pendiente de prueba.
 
-Para una prueba local aislada se puede usar baseUrl=http://localhost:9091,
-pero eso NO valida los permisos del Gateway. El POST y los GET no llaman
+Para una prueba local aislada se puede usar baseUrl=http://localhost:9091;
+también requiere Bearer ADMINISTRADOR para escribir. Eso no valida los permisos
+del Gateway: repetir después con 9090. El POST y los GET no llaman
 a inventario-service. El PUT y DELETE heredados siguen pendientes de adaptación;
 no forman parte de esta prueba ni se amplió su funcionalidad.
 

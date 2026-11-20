@@ -43,7 +43,7 @@ El ecosistema está compuesto por los siguientes servicios:
 7. **`promocion-service`**: Temporal; Ventas consulta la validación de cupones.
 8. **`inventario-service`**: Descuento y adición de stock físico.
 9. **`despacho-service`**: Gestión de envíos y cálculo de fletes.
-10. **`auth-service`**: Generación y validación de tokens JWT para seguridad (OAuth2).
+10. **`identidad-service`**: Cuentas, perfiles, roles y autenticación con JWT HS256. Conserva los paquetes Java `auth_service` y las rutas externas existentes.
 
 ---
 
@@ -61,7 +61,9 @@ La configuración activa aún falta; esta tabla no representa la API final de Re
 | **Promociones**    | `/api/promociones/**`    | `lb://promocion-service`  |
 | **Inventario**     | `/api/inventario/**`     | `lb://inventario-service` |
 | **Despachos**      | `/api/despachos/**`      | `lb://despacho-service`   |
-| **Autenticación**  | `/auth/**`               | `lb://auth-service`       |
+| **Autenticación**  | `/auth/**`               | `lb://identidad-service`  |
+| **Perfil propio** | `/api/v1/usuarios/me`    | `lb://identidad-service`  |
+| **Alta de personal** | `/api/v1/admin/usuarios` | `lb://identidad-service` |
 
 ---
 

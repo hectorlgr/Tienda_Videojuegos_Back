@@ -1,6 +1,7 @@
 package com.ferreteria.api_gateway.config;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -8,8 +9,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
@@ -26,7 +34,11 @@ public class SecurityConfig {
                                 .authorizeExchange(exchanges -> exchanges
                                                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                                                 // RUTAS PÚBLICAS
-                                                .pathMatchers("/auth/**").permitAll()
+                                                .pathMatchers(HttpMethod.POST, "/auth/login", "/auth/register/cliente")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.GET, "/auth/v3/api-docs", "/auth/v3/api-docs/**")
+                                                .permitAll()
+                                                .pathMatchers("/auth/**").denyAll()
                                                 .pathMatchers(
                                                                 "/doc/**",
                                                                 "/v3/api-docs/**",
@@ -39,61 +51,41 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // PRODUCTOS (CATÁLOGO)
-                                                .pathMatchers(HttpMethod.GET, "/api/productos/**").authenticated()
-                                                // DELETE permitido a ADMIN y OPERADOR (Soft Delete)
-                                                .pathMatchers(HttpMethod.DELETE, "/api/productos/**")
-                                                .hasAnyRole("ADMIN", "OPERADOR")
-                                                .pathMatchers("/api/productos/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                .pathMatchers(HttpMethod.GET, "/api/productos", "/api/productos/*")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.POST, "/api/productos").hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.PUT, "/api/productos/*").hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.DELETE, "/api/productos/*").hasRole("ADMINISTRADOR")
 
                                                 // INVENTARIO
-                                                .pathMatchers(HttpMethod.DELETE, "/api/inventario/**").hasRole("ADMIN")
-                                                .pathMatchers("/api/inventario/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                .pathMatchers("/api/inventario/**").hasRole("ADMINISTRADOR")
 
-                                                // VENTAS
-                                                .pathMatchers(HttpMethod.GET, "/api/ventas/**").authenticated()
-                                                .pathMatchers(HttpMethod.POST, "/api/ventas/**").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/ventas/**").hasRole("ADMIN")
-                                                .pathMatchers(HttpMethod.PUT, "/api/ventas/**")
-                                                .hasAnyRole("ADMIN", "OPERADOR")
+                                                // Ventas heredadas: comprador y consultas aún no ligados al JWT.
+                                                .pathMatchers("/api/ventas/**").hasRole("ADMINISTRADOR")
 
-                                                // DESPACHOS
-                                                .pathMatchers(HttpMethod.GET, "/api/despachos/**").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/despachos/**").hasRole("ADMIN")
-                                                .pathMatchers("/api/despachos/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                // Operaciones heredadas sin un contrato de acceso propio del cliente.
+                                                .pathMatchers("/api/despachos/**").hasRole("ADMINISTRADOR")
 
                                                 // USUARIOS
-                                                .pathMatchers(HttpMethod.GET, "/api/usuarios/me").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasRole("ADMIN")
-                                                .pathMatchers("/api/usuarios/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                .pathMatchers(HttpMethod.GET, "/api/v1/usuarios/me").authenticated()
+                                                .pathMatchers(HttpMethod.PATCH, "/api/v1/usuarios/me").authenticated()
+                                                .pathMatchers(HttpMethod.POST, "/api/v1/admin/usuarios")
+                                                .hasRole("ADMINISTRADOR")
+                                                .pathMatchers("/api/usuarios/**").hasRole("ADMINISTRADOR")
 
                                                 // PROMOCIONES
-                                                .pathMatchers(HttpMethod.GET, "/api/promociones/**").authenticated()
-                                                // REGLA GENERAL: Solo ADMIN borra
-                                                .pathMatchers(HttpMethod.DELETE, "/api/promociones/**").hasRole("ADMIN")
-                                                .pathMatchers("/api/promociones/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                .pathMatchers("/api/promociones/**").hasRole("ADMINISTRADOR")
 
                                                 // PEDIDOS
-                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/**").authenticated()
-                                                .pathMatchers(HttpMethod.PUT, "/api/pedidos/*/cancelar").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/pedidos/**").hasRole("ADMIN")
-                                                .pathMatchers("/api/pedidos/**").hasAnyRole("ADMIN", "OPERADOR")
+                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/usuario/*")
+                                                .hasAnyRole("ADMINISTRADOR", "VENDEDOR")
+                                                .pathMatchers(HttpMethod.POST, "/api/pedidos").hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.PUT, "/api/pedidos/*/estado",
+                                                                "/api/pedidos/*/cancelar")
+                                                .hasRole("ADMINISTRADOR")
 
-                                                // RESENAS
-                                                .pathMatchers(HttpMethod.GET, "/api/resenas/**").authenticated()
-                                                .pathMatchers(HttpMethod.POST, "/api/resenas/**").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/resenas/**").hasRole("ADMIN")
-                                                .pathMatchers(HttpMethod.PUT, "/api/resenas/**")
-                                                .hasAnyRole("ADMIN", "OPERADOR")
-
-                                                // SOPORTE
-                                                .pathMatchers(HttpMethod.GET, "/api/soporte/**").authenticated()
-                                                .pathMatchers(HttpMethod.POST, "/api/soporte/**").authenticated()
-                                                .pathMatchers(HttpMethod.DELETE, "/api/soporte/**").hasRole("ADMIN")
-                                                .pathMatchers(HttpMethod.PUT, "/api/soporte/**")
-                                                .hasAnyRole("ADMIN", "OPERADOR")
-
-                                                // Cualquier otra ruta requiere autenticación
-                                                .anyExchange().hasRole("ADMIN"))
+                                                // Incluye rutas de los módulos retirados y operaciones no definidas.
+                                                .anyExchange().denyAll())
                                 .oauth2ResourceServer(oauth2 -> oauth2
                                                 // Configurar JWT como método de autenticación
                                                 .jwt(jwt -> jwt.jwtAuthenticationConverter(
@@ -104,10 +96,24 @@ public class SecurityConfig {
         // Bean para leer la firma del token
         @Bean
         public ReactiveJwtDecoder jwtDecoder() {
-                SecretKeySpec key = new SecretKeySpec(
-                                secret.getBytes(StandardCharsets.UTF_8),
-                                "HmacSHA256");
-                return NimbusReactiveJwtDecoder.withSecretKey(key).build();
+                byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+                if (keyBytes.length < 32) {
+                        throw new IllegalArgumentException(
+                                        "La clave JWT debe contener al menos 32 bytes UTF-8");
+                }
+                SecretKeySpec key = new SecretKeySpec(keyBytes, "HmacSHA256");
+                NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withSecretKey(key)
+                                .macAlgorithm(MacAlgorithm.HS256)
+                                .build();
+                Set<String> roles = Set.of("ADMINISTRADOR", "VENDEDOR", "CLIENTE");
+                OAuth2TokenValidator<Jwt> roleValidator = jwt ->
+                                jwt.getClaims().get("role") instanceof String role && roles.contains(role)
+                                                ? OAuth2TokenValidatorResult.success()
+                                                : OAuth2TokenValidatorResult.failure(
+                                                                new OAuth2Error("invalid_token", "Rol no válido", null));
+                decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                                JwtValidators.createDefault(), roleValidator));
+                return decoder;
         }
 
         // Leer roles

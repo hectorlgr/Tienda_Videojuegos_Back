@@ -1,0 +1,39 @@
+spring.application.name=identidad-service
+server.port=9096
+server.address=127.0.0.1
+
+# Ejemplo inactivo. Definir valores propios antes de habilitar esta configuracion.
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.datasource.hikari.maximum-pool-size=5
+spring.datasource.hikari.minimum-idle=2
+spring.datasource.hikari.idle-timeout=30000
+spring.datasource.hikari.max-lifetime=60000
+spring.datasource.hikari.connection-timeout=10000
+spring.datasource.hikari.validation-timeout=5000
+spring.datasource.hikari.keepalive-time=30000
+
+spring.jpa.show-sql=false
+spring.jpa.hibernate.ddl-auto=validate
+spring.sql.init.mode=never
+
+# Sin clave incorporada ni valor predeterminado.
+# Compartir exactamente el mismo JWT_SECRET con Gateway.
+# Usar una clave aleatoria segura de al menos 32 bytes UTF-8, sin limite maximo.
+# Se utilizan los bytes UTF-8 del texto configurado, sin decodificar Base64.
+# El algoritmo es siempre HS256, independientemente de la longitud de la clave.
+jwt.secret=${JWT_SECRET}
+
+eureka.client.fetch-registry=true
+eureka.client.register-with-eureka=true
+eureka.client.serviceUrl.defaultZone=${EUREKA_URL:http://127.0.0.1:8761/eureka/}
+eureka.instance.prefer-ip-address=true
+eureka.instance.ip-address=127.0.0.1
+eureka.instance.instance-id=${spring.application.name}:${server.port}
+
+springdoc.override-with-generic-response=false
+springdoc.api-docs.path=/auth/v3/api-docs
+server.forward-headers-strategy=framework

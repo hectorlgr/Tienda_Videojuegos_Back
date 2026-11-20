@@ -1,6 +1,9 @@
-# Ejemplo inactivo. Requiere una clave propia, compartida con Auth.
+# Ejemplo inactivo. Requiere exactamente el mismo JWT_SECRET que Auth.
+# Clave aleatoria segura: al menos 32 bytes UTF-8, sin limite maximo.
+# Se usan los bytes UTF-8 del texto, sin decodificar Base64. Solo se acepta HS256.
 server:
   port: 9090
+  address: 127.0.0.1
 
 spring:
   application:
@@ -16,8 +19,18 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
       routes:
+        - id: auth-admin-usuarios
+          uri: lb://identidad-service
+          predicates:
+            - Path=/api/v1/admin/usuarios
+            - Method=POST
+        - id: auth-perfil
+          uri: lb://identidad-service
+          predicates:
+            - Path=/api/v1/usuarios/me
+            - Method=GET,PATCH
         - id: promocion-service
           uri: lb://promocion-service
           predicates:
@@ -26,8 +39,8 @@ spring:
           uri: lb://pedido-service
           predicates:
             - Path=/api/pedidos/**
-        - id: auth-service
-          uri: lb://auth-service
+        - id: identidad-service
+          uri: lb://identidad-service
           predicates:
             - Path=/auth/**
         - id: venta-service
@@ -54,12 +67,13 @@ spring:
 eureka:
   instance:
     prefer-ip-address: true
+    ip-address: 127.0.0.1
     instance-id: ${spring.application.name}:${server.port}
   client:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://127.0.0.1:8761/eureka/}
 
 springdoc:
   api-docs:

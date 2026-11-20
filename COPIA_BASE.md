@@ -9,6 +9,8 @@
 > nueve configuraciones de las secciones siguientes corresponden a la copia inicial.
 > El ejemplo de Gateway y los scripts se actualizaron para reflejar el retiro.
 > Véase `MIGRACION_ESTRUCTURAL.md` para las dependencias y pendientes actuales.
+> En `feature/identidad-usuarios`, el módulo de autenticación pasó a llamarse
+> `identidad-service`. Las rutas `auth-service` de este registro son históricas.
 
 Origen: carpeta hermana `Backend Ferreteria - copia`.
 

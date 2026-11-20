@@ -11,8 +11,8 @@ cd api-gateway
 call .\mvnw clean
 cd ..
 
-echo Limpiando auth-service...
-cd auth-service
+echo Limpiando identidad-service...
+cd identidad-service
 call .\mvnw clean
 cd ..
 

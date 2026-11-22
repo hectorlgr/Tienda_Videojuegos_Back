@@ -17,6 +17,14 @@ import com.ferreteria.catalogo_service.model.FormatoProducto;
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
+    @EntityGraph(attributePaths = "imagenesAdicionales")
+    @Query("select p from Producto p order by p.id")
+    List<Producto> findAllAdministrativos();
+
+    @EntityGraph(attributePaths = "imagenesAdicionales")
+    @Query("select p from Producto p where p.id = :id")
+    Optional<Producto> findByIdAdministrativo(@Param("id") Long id);
+
     boolean existsByRawgIdAndPlataformaAndFormato(Long rawgId, String plataforma, FormatoProducto formato);
 
     boolean existsByRawgIdAndPlataformaAndFormatoAndIdNot(

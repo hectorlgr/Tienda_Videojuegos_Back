@@ -8,9 +8,11 @@ Los ejemplos de respuesta son ilustrativos; IDs, enlaces y datos reales varían.
 El equipo confirmó validación funcional con Postman/MySQL. En esta revisión
 documental no se iniciaron servicios ni se ejecutaron HTTP, SQL o pruebas de navegador.
 
-**Antes de conectar React:** revisar la sección 8. No hay CORS configurado para
-Vite en el código/configuración inspeccionados. Además, no existe una consulta
-administrativa para listar/recuperar productos deshabilitados.
+**Actualización de consultas administrativas:** el panel debe usar
+`GET /api/admin/productos` y `GET /api/admin/productos/{id}` con JWT
+ADMINISTRADOR para incluir productos deshabilitados. La edición conserva
+`PUT /api/productos/{id}` y stockEsperado. CORS de Gateway fue configurado
+posteriormente y validado por el equipo con OPTIONS/GET; ver la nota de sección 8.
 
 ## 1. Configuración, autenticación y errores
 
@@ -69,6 +71,8 @@ Todas las rutas de la tabla parten de la base Gateway:
 | GET /api/productos | Público | 200 |
 | GET /api/productos?categoria=CONSOLA | Público | 200 |
 | GET /api/productos/{id} | Público | 200 |
+| GET /api/admin/productos | ADMINISTRADOR | 200, incluye habilitados y deshabilitados |
+| GET /api/admin/productos/{id} | ADMINISTRADOR | 200, incluso deshabilitado; 404 inexistente |
 | POST /api/productos | ADMINISTRADOR | 201 |
 | PUT /api/productos/{id} | ADMINISTRADOR | 200 |
 | DELETE /api/productos/{id} | ADMINISTRADOR | 204 sin cuerpo |
@@ -416,13 +420,42 @@ el frontend puede construir las rutas conocidas con su base y `id`.
 
 ### Productos ocultos y agotados
 
-Los GET excluyen habilitado=false **incluso con JWT ADMINISTRADOR**.
-No existe `?incluirDeshabilitados=true` ni endpoint administrativo alternativo
-de lectura. Esta es una limitación concreta para una pantalla de gestión:
-después de ocultar y recargar, no se puede recuperar la ficha por esos GET.
-PUT sí admite el ID de un producto oculto, pero requiere el estado completo
-y stockEsperado; no inventar esos datos. Resolver una consulta administrativa
-en otra tarea si la UI necesita listar/editar/reactivar ocultos.
+Los GET **públicos** excluyen habilitado=false incluso con JWT ADMINISTRADOR.
+No existe un parámetro público para ampliar ese filtro.
+
+El panel administrativo debe utilizar:
+
+- GET `/api/admin/productos`: todos los registros, habilitados/deshabilitados,
+  incluidos los de stock cero. Orden por ID ascendente, sin paginación ni
+  filtro de categoría implementado en esta ruta.
+- GET `/api/admin/productos/{id}`: cualquier producto existente, con sus
+  imágenes; 404 únicamente si el ID numérico no existe.
+
+Ambos exigen ADMINISTRADOR en Gateway y Catálogo: 401 sin JWT válido,
+403 con CLIENTE/VENDEDOR. No se añadieron POST/PUT/DELETE bajo `/api/admin`.
+Los datos usan el mismo ProductoResponseDto. La lista tiene
+`_embedded.productos` y `_links.self`; el detalle tiene los campos en la raíz
+y `_links`. Los enlaces administrativos son, por ejemplo:
+
+```json
+{
+  "_links": {
+    "self": {"href": "http://localhost:9090/api/admin/productos/12"},
+    "todos-los-productos": {"href": "http://localhost:9090/api/admin/productos"}
+  }
+}
+```
+
+El ejemplo muestra solo los enlaces añadidos al DTO; la respuesta incluye
+todos sus campos. Los elementos del listado también llevan estos enlaces
+administrativos, no enlaces públicos que darían 404 para productos ocultos.
+Usar `respuesta._embedded?.productos ?? []` para consumir la lista.
+
+Para editar/reactivar, cargar primero el detalle administrativo y copiar su
+stock a stockEsperado. Enviar el JSON editable completo al PUT existente
+`/api/productos/{id}`, con habilitado=true si se quiere reactivar.
+El PUT ya busca sin filtrar habilitado, conserva bloqueo y compara el saldo:
+no se modificó esa operación. Ante 409, recargar por el GET administrativo.
 
 Con stock=0 y habilitado=true el producto sigue en GET, disponible=false.
 La UI puede mostrar «Agotado» sin tratarlo como eliminado.
@@ -824,7 +857,17 @@ const categorias = {
 const formatos = { fisico: "FISICO", "físico": "FISICO", digital: "DIGITAL" };
 ```
 
-## 8. CORS: incompatibilidad actual con Vite directo
+## 8. CORS: actualización y diagnóstico histórico
+
+**Nota posterior:** el diagnóstico histórico que sigue fue resuelto mediante
+una política única en SecurityConfig de Gateway. Autoriza
+http://localhost:5173 y http://127.0.0.1:5173, métodos GET/POST/PUT/DELETE/OPTIONS,
+headers Authorization/Content-Type, sin cookies. El equipo confirmó OPTIONS
+y GET desde localhost:5173. Véase `../api-gateway/CORS_FRONTEND_LOCAL.md`.
+Las nuevas rutas administrativas están cubiertas por esa política existente;
+esta tarea no modificó CORS ni ejecutó pruebas de navegador.
+Los párrafos siguientes conservan el diagnóstico original, no el estado actual
+del Gateway. Catálogo directo sigue sin política CORS.
 
 Se inspeccionaron SecurityConfig de Gateway y Catálogo, controladores,
 configuraciones Java y recursos application.yml/properties y ejemplos.
@@ -878,11 +921,12 @@ el status/body y presentarse como TypeError de fetch.
 
 Antes de conectar el formulario:
 
-1. Resolver CORS o acordar proxy Vite; probar navegador, no solo Postman.
+1. Usar la política CORS local ya configurada en Gateway; verificar también
+   las nuevas consultas administrativas desde el navegador.
 2. Usar DTO explícito y mapas de categorías/formato; números/booleanos JSON.
 3. Separar stock leído del stock editable y manejar 409 sin sobrescritura ciega.
-4. Decidir cómo gestionará la UI productos ocultos: no hay GET administrativo
-   para recuperarlos después de recargar.
+4. Usar GET /api/admin/productos y /api/admin/productos/{id} para gestionar
+   ocultos. Conservar los GET públicos para la tienda y el PUT existente para editar.
 5. Subir File antes de guardar JSON; conservar URLs y limitar adicionales a 4.
 6. No bloquear nuevas variantes por yaImportado; mostrar atribución RAWG.
 7. No asumir errores por campo, enlaces con origen fijo ni cuerpo JSON en 204/401/403.
@@ -904,5 +948,76 @@ Fuentes de código revisadas (rutas relativas al backend):
 - Para login: `identidad-service/.../Dto/LoginRequestDto.java` y
   `controller/UserController.java`, solo lectura.
 
-Único artefacto creado en esta tarea: este documento. No se modificaron CORS,
-seguridad, DTO, endpoints, frontend, db.json ni esquema.
+La entrega inicial de este contrato fue solo documental. La ampliación
+administrativa posterior agregó los dos GET protegidos, sin cambiar el DTO
+ni los contratos de escritura, y se verifica como se indica a continuación.
+
+## 10. Postman: consultas administrativas y reactivación
+
+Pruebas pendientes de esta ampliación; no se ejecutaron peticiones HTTP ni SQL.
+Variables: baseUrl=http://localhost:9090, adminToken, clienteToken, vendedorToken,
+idDeshabilitado (ID real ya existente), idInexistente (confirmado ausente).
+Repetir la matriz con baseUrl=http://localhost:9091 para comprobar seguridad local.
+
+### Consultas y permisos (sin modificar datos)
+
+```http
+GET {{baseUrl}}/api/admin/productos
+Authorization: Bearer {{adminToken}}
+```
+
+Esperado 200, `_embedded.productos` incluye habilitado=true/false y stock=0,
+con los campos actuales y galería ordenada. Los enlaces apuntan a `/api/admin`.
+
+```http
+GET {{baseUrl}}/api/admin/productos/{{idDeshabilitado}}
+Authorization: Bearer {{adminToken}}
+```
+
+Esperado 200 con habilitado=false e imágenes. Comparar los datos con la fila
+del listado; no cambiar su estado para esta consulta.
+
+```http
+GET {{baseUrl}}/api/admin/productos/{{idInexistente}}
+Authorization: Bearer {{adminToken}}
+```
+
+Esperado 404 con el error controlado habitual.
+
+Para las DOS rutas administrativas repetir:
+
+| Authorization | Resultado esperado |
+| --- | --- |
+| No Auth | 401 |
+| Bearer inválido/expirado | 401 |
+| Bearer {{clienteToken}} | 403 |
+| Bearer {{vendedorToken}} | 403 |
+| Bearer {{adminToken}} | 200 para listado/ID existente |
+
+Comprobar regresión pública, sin Authorization:
+
+```http
+GET {{baseUrl}}/api/productos
+GET {{baseUrl}}/api/productos/{{idDeshabilitado}}
+GET {{baseUrl}}/api/productos?categoria=CONSOLA
+```
+
+Los listados públicos excluyen el ID deshabilitado (el filtro de categoría
+se evalúa con uno correspondiente); consulta pública por ese ID: 404.
+Un producto habilitado con stock cero sigue visible en ambas listas apropiadas.
+
+### Reactivación opcional (sí modifica datos al ejecutarla)
+
+1. GET administrativo del producto oculto; conservar todos sus campos editables
+   y capturar el stock actual.
+2. PUT `{{baseUrl}}/api/productos/{{idDeshabilitado}}` con Bearer adminToken,
+   Content-Type application/json y el body completo de edición descrito en
+   sección 3: usar los valores reales, habilitado=true y stockEsperado=stock leído.
+   No enviar id, rawgId, precioEfectivo, disponible ni _links.
+3. Esperado 200; GET público por el ID vuelve a devolver 200. Confirmar que
+   stock, precios, SKU, rawgId y galería se conservaron.
+4. Un PUT con stockEsperado distinto del actual debe dar 409 sin cambios;
+   recargar mediante GET administrativo para comprobarlo.
+
+No es necesario ejecutar movimientos de stock para comprobar un conflicto:
+basta un stockEsperado no negativo distinto del valor real en el body válido.

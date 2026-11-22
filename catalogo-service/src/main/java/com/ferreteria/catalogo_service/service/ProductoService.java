@@ -33,6 +33,17 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final Validator validator;
 
+    @Transactional(readOnly = true)
+    public List<Producto> obtenerTodosAdministrativo() {
+        return productoRepository.findAllAdministrativos();
+    }
+
+    @Transactional(readOnly = true)
+    public Producto obtenerPorIdAdministrativo(Long id) {
+        return productoRepository.findByIdAdministrativo(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con el ID " + id));
+    }
+
     public List<Producto> obtenerTodos(CategoriaProducto categoria) {
         return categoria == null ? obtenerTodos()
                 : productoRepository.findByCategoriaAndHabilitadoTrue(categoria);

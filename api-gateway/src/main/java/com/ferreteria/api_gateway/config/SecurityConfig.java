@@ -55,6 +55,9 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // PRODUCTOS (CATÁLOGO)
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/admin/productos", "/api/admin/productos/{id}")
+                                                .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.POST, "/api/productos/rawg/{rawgId}/importar")
                                                 .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.POST, "/api/productos/imagenes/subir")

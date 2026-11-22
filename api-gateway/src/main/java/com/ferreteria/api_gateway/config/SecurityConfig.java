@@ -43,6 +43,16 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.GET, "/auth/v3/api-docs", "/auth/v3/api-docs/**")
                                                 .permitAll()
                                                 .pathMatchers("/auth/**").denyAll()
+                                                // Ventas: lista cerrada antes de las excepciones genéricas de Swagger.
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/ventas/v3/api-docs", "/api/ventas/v3/api-docs/**")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/ventas", "/api/ventas/{id}",
+                                                                "/api/ventas/usuario/{usuarioId}", "/api/ventas/rango-fechas")
+                                                .hasRole("ADMINISTRADOR")
+                                                // Bloquea escrituras y consulta por email incluso para ADMINISTRADOR.
+                                                .pathMatchers("/api/ventas", "/api/ventas/**").denyAll()
                                                 .pathMatchers(
                                                                 "/doc/**",
                                                                 "/v3/api-docs/**",
@@ -80,9 +90,6 @@ public class SecurityConfig {
 
                                                 // INVENTARIO
                                                 .pathMatchers("/api/inventario/**").hasRole("ADMINISTRADOR")
-
-                                                // Ventas heredadas: comprador y consultas aún no ligados al JWT.
-                                                .pathMatchers("/api/ventas/**").hasRole("ADMINISTRADOR")
 
                                                 // Operaciones heredadas sin un contrato de acceso propio del cliente.
                                                 .pathMatchers("/api/despachos/**").hasRole("ADMINISTRADOR")

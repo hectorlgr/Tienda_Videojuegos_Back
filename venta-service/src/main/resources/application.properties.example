@@ -1,0 +1,29 @@
+spring.application.name=venta-service
+server.port=9094
+server.address=127.0.0.1
+
+# Mismo texto externo que Identidad y Gateway: minimo 32 bytes UTF-8, HS256.
+jwt.secret=${JWT_SECRET}
+
+# Base nueva creada manualmente; nunca crear la base desde JDBC.
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/checkpoint_store_ventas?serverTimezone=UTC
+spring.datasource.username=${VENTAS_DB_USERNAME}
+spring.datasource.password=${VENTAS_DB_PASSWORD}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=false
+spring.sql.init.mode=never
+# Defensa adicional; el modulo ya no incluye las dependencias de Liquibase.
+spring.liquibase.enabled=false
+
+eureka.client.fetch-registry=true
+eureka.client.register-with-eureka=true
+eureka.client.serviceUrl.defaultZone=${EUREKA_URL:http://127.0.0.1:8761/eureka/}
+eureka.instance.prefer-ip-address=true
+eureka.instance.ip-address=127.0.0.1
+eureka.instance.instance-id=${spring.application.name}:${server.port}
+
+springdoc.override-with-generic-response=false
+springdoc.api-docs.path=/api/ventas/v3/api-docs
+server.forward-headers-strategy=framework

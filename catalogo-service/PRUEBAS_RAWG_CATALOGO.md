@@ -1,6 +1,11 @@
 # RAWG: búsqueda y previsualización administrativa
 
-No hay importación ni escritura de productos. Esta implementación no realizó
+La importación se documenta separadamente en `IMPORTACION_RAWG_POSTMAN.md`.
+Los GET de esta guía conservan su contrato. `yaImportado=true` indica que
+existe alguna variante, incluida una deshabilitada; no bloquea importar otra
+plataforma/formato con SKU distinto.
+
+Estos endpoints GET no importan ni escriben productos. Esta implementación no realizó
 peticiones reales a RAWG, SQL ni pruebas HTTP. Los ejemplos son contratos
 ilustrativos, no capturas de respuestas ejecutadas.
 

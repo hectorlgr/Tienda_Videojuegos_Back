@@ -12,9 +12,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import com.ferreteria.catalogo_service.model.Producto;
 import com.ferreteria.catalogo_service.model.CategoriaProducto;
+import com.ferreteria.catalogo_service.model.FormatoProducto;
 
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
+
+    boolean existsByRawgIdAndPlataformaAndFormato(Long rawgId, String plataforma, FormatoProducto formato);
+
+    boolean existsByRawgIdAndPlataformaAndFormatoAndIdNot(
+            Long rawgId, String plataforma, FormatoProducto formato, Long id);
 
     boolean existsByCodigo(String codigo);
 

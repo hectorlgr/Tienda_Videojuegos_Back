@@ -87,6 +87,13 @@ public class GlobalExceptionHandler {
             if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
                     && violation.getConstraintName() != null
                     && violation.getConstraintName().toLowerCase(java.util.Locale.ROOT)
+                            .contains("uq_producto_variante_rawg")) {
+                return buildResponse(HttpStatus.CONFLICT,
+                        "Ya existe esta variante RAWG, plataforma y formato.", request.getRequestURI());
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && violation.getConstraintName() != null
+                    && violation.getConstraintName().toLowerCase(java.util.Locale.ROOT)
                             .contains("uq_producto_codigo")) {
                 return buildResponse(HttpStatus.CONFLICT,
                         "El código SKU ya pertenece a otro producto.", request.getRequestURI());

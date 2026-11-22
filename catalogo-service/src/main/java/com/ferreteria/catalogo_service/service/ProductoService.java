@@ -11,6 +11,7 @@ import org.hibernate.Hibernate;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
 import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
 import com.ferreteria.catalogo_service.Dto.ProductoRequestDto;
+import com.ferreteria.catalogo_service.Dto.RawgImportacionRequestDto;
 import com.ferreteria.catalogo_service.model.CategoriaProducto;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolationException;
@@ -39,13 +40,28 @@ public class ProductoService {
 
     @Transactional
     public Producto crearProducto(ProductoCrearRequestDto dto) {
+        return crearProductoLocal(dto, null);
+    }
+
+    @Transactional
+    public Producto crearProductoImportado(ProductoCrearRequestDto dto, Long rawgId) {
+        if (rawgId == null || rawgId <= 0 || dto.getCategoria() != CategoriaProducto.VIDEOJUEGO) {
+            throw new BadRequestException("La importación requiere un rawgId válido y categoría VIDEOJUEGO.");
+        }
+        dto.setPlataforma(RawgImportacionRequestDto.normalizarPlataforma(dto.getPlataforma()));
+        return crearProductoLocal(dto, rawgId);
+    }
+
+    private Producto crearProductoLocal(ProductoCrearRequestDto dto, Long rawgId) {
         var errores = validator.validate(dto);
         if (!errores.isEmpty()) {
             throw new ConstraintViolationException(errores);
         }
         comprobarCodigo(dto.getCodigo(), null);
-        // MySQL genera el ID. rawgId se reserva para la futura importación.
+        comprobarVariante(rawgId, dto.getPlataforma(), dto.getFormato(), null);
+        // Solo el flujo interno de importación puede proporcionar rawgId.
         Producto producto = new Producto();
+        producto.setRawgId(rawgId);
         aplicarCamposEditables(producto, dto);
         agregarImagenes(producto, dto.getImagenes());
         return guardarProducto(producto);
@@ -79,6 +95,20 @@ public class ProductoService {
                 : productoRepository.existsByCodigoAndIdNot(codigo, id);
         if (existe) {
             throw new ConflictException("El código SKU ya pertenece a otro producto.");
+        }
+    }
+
+    private void comprobarVariante(Long rawgId, String plataforma,
+            com.ferreteria.catalogo_service.model.FormatoProducto formato, Long id) {
+        if (rawgId == null) return;
+        if (plataforma == null || plataforma.isBlank() || formato == null) {
+            throw new BadRequestException("Una variante RAWG requiere plataforma y formato.");
+        }
+        boolean existe = id == null
+                ? productoRepository.existsByRawgIdAndPlataformaAndFormato(rawgId, plataforma, formato)
+                : productoRepository.existsByRawgIdAndPlataformaAndFormatoAndIdNot(rawgId, plataforma, formato, id);
+        if (existe) {
+            throw new ConflictException("Ya existe esta variante RAWG, plataforma y formato.");
         }
     }
 
@@ -141,6 +171,10 @@ public class ProductoService {
             throw new ConflictException("El stock cambió desde la consulta. Recargue el producto antes de editar.");
         }
         comprobarCodigo(dto.getCodigo(), id);
+        if (productoExistente.getRawgId() != null) {
+            dto.setPlataforma(RawgImportacionRequestDto.normalizarPlataforma(dto.getPlataforma()));
+            comprobarVariante(productoExistente.getRawgId(), dto.getPlataforma(), dto.getFormato(), id);
+        }
         // Cargar dentro de la transacción: el DTO se construye fuera del servicio.
         Hibernate.initialize(productoExistente.getImagenesAdicionales());
         if (dto.getImagenes() != null) {

@@ -49,6 +49,8 @@ public class SecurityConfig {
                         // Despacho interno de errores; no publica /error para peticiones externas.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/productos/rawg/{rawgId}/importar")
+                        .hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/productos/imagenes/subir")
                         .hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/productos/imagenes/{nombre}").permitAll()

@@ -12,6 +12,7 @@ spring.datasource.password=${VENTAS_DB_PASSWORD}
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
 spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.properties.hibernate.jdbc.time_zone=UTC
 spring.jpa.show-sql=false
 spring.sql.init.mode=never
 # Defensa adicional; el modulo ya no incluye las dependencias de Liquibase.

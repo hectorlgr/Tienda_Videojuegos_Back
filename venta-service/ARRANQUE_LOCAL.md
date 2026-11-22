@@ -1,4 +1,4 @@
-# Ventas — configuración local y esquema manual (actualizado en etapa 2)
+# Ventas — configuración local y esquema manual (actualizado en etapa 3.1)
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
 repositorio. Para el recorrido por Gateway también se necesitan Eureka y Gateway.
@@ -8,14 +8,15 @@ No usar el lanzador general: todavía no incorpora Ventas.
 indicadas. No ejecutar POST, PUT o DELETE para simular compras.** La etapa 2
 añade JWT local y bloquea las operaciones heredadas inseguras; las comprobaciones
 negativas del bloqueo están en [SEGURIDAD_VENTAS.md](SEGURIDAD_VENTAS.md).
-No implementa pedidos nuevos, pagos ni integración con Identidad/Catálogo.
+La etapa 3.1 incorpora únicamente el mapping persistente de pedidos, sin API,
+checkout, pagos ni integración con Identidad/Catálogo.
 No necesita arrancar Usuarios, Inventario, Promociones, Pedidos ni Despachos
 para consultar la colección vacía.
 
 ## 1. Preparar MySQL manualmente
 
 Esta preparación corresponde a la etapa 1. Si ya está validada, no repetirla:
-la etapa 2 no requiere SQL ni cambios de esquema.
+aplicar únicamente el paso aditivo de la sección 1.1 para la etapa 3.1.
 
 Con una cuenta administradora, revisar y ejecutar una sola vez:
 
@@ -55,6 +56,130 @@ Correspondencia revisada en código:
 Se conserva el modelo actual, sin añadir restricciones comerciales nuevas.
 `CascadeType.ALL` es una operación JPA, no una cascada de borrado SQL.
 La revisión estática no demuestra que Hibernate haya validado una base real.
+
+### 1.1 Etapa 3.1 — añadir el modelo de pedidos
+
+Con los servicios detenidos, usar una cuenta administradora para revisar y
+ejecutar una sola vez `sql/02_crear_tablas_pedidos.sql` sobre MySQL 8.4.
+El archivo utiliza nombres cualificados de `checkpoint_store_ventas` y crea
+únicamente `pedidos` y `detalle_pedidos`. No ejecutar otra vez 01, ni crear
+otra base, ni modificar `ventas`, `detalle_ventas` o las bases heredadas.
+Si alguna tabla nueva ya existe, detenerse e inspeccionarla; no borrar ni
+continuar automáticamente. El DDL hace commit implícito.
+
+La cuenta de aplicación con `SELECT ON checkpoint_store_ventas.*` también
+puede consultar las tablas nuevas y es suficiente para `ddl-auto=validate`.
+No ampliar permisos en esta etapa. Antes del checkout deberán concederse los
+permisos de escritura necesarios sobre las tablas nuevas mediante un paso
+manual separado; no hacen falta permisos DDL para la aplicación.
+
+#### Mapping y límites deliberados
+
+- `Pedido` y `DetallePedido` son entidades nuevas independientes de Venta.
+  `EntregaPedido` es un embebido: sus seis columnas viven en `pedidos`.
+- Long se almacena como BIGINT; cantidad como INT; importes en CLP enteros.
+  No hay tarifa predeterminada, IVA adicional, pagos ni cálculos automáticos.
+- Enums: `@Enumerated(STRING)` + `@JdbcTypeCode(VARCHAR)`, no ENUM nativo MySQL.
+  CHECK exige los nombres exactos en mayúsculas, incluso con colación insensible.
+- Claves idempotentes y de operación: UUID textual canónico en minúsculas de
+  36 caracteres. Hash: SHA-256 hexadecimal en minúsculas de 64 caracteres.
+  SQL usa VARCHAR ASCII para estos tres campos; JPA los mapea como String/VARCHAR.
+- La intención CREADO se persistirá después de preparar snapshots e importes:
+  comprador, fechas, estados, totales, indicadores, claves y hash son NOT NULL,
+  sin defaults que inventen esos valores. `@Version` es administrado por JPA.
+- Entrega nullable para digitales; el CHECK exige destinatario/teléfono/dirección/
+  región/comuna no vacíos para físicos o mixtos. Referencia es opcional (500).
+  Para solo digitales, las seis columnas de entrega son NULL y despacho es 0.
+- Motivo de cancelación (500) y las tres fechas de cancelación/cumplimiento
+  son opcionales. No se exige fecha de cancelación durante REVERSION_PENDIENTE.
+  No se restringen aún combinaciones entre estados comercial y técnico:
+  las transiciones y la compensación necesitan reglas de servicio posteriores.
+- Los detalles conservan referencia externa productoId y snapshots SKU (64),
+  nombre (255), categoría (20), formato (10) y plataforma (255).
+  VIDEOJUEGO exige formato y plataforma; otras categorías permiten ambos nulos
+  y pueden conservar valores existentes de Catálogo.
+- Única FK: detalle_pedidos.pedido_id → pedidos.id, RESTRICT.
+  Sin FK entre bases. Cascadas JPA solo PERSIST/MERGE, sin REMOVE/orphanRemoval.
+- SQL comprueba subtotales y total final por fila. Los CAST a DECIMAL en CHECK
+  evitan overflow de las operaciones intermedias; las columnas siguen BIGINT.
+  Suma de detalles, composición de la cabecera, al menos una línea, autorización,
+  generación de claves, transiciones y recuperación quedan para futuros servicios.
+  No hay repositorios, endpoints, listeners ni callbacks que ejecuten estos flujos.
+- El CHECK no sustituye validación de DTO/servicio. `validate` no demuestra que
+  todas las restricciones e índices estén instalados: inspeccionar SHOW CREATE.
+
+#### Convención temporal UTC
+
+Las cinco fechas de Pedido usan **Instant** y JDBC TIMESTAMP_UTC en Hibernate,
+con columna explícita DATETIME(6). El ejemplo conserva JDBC `serverTimezone=UTC`
+y añade `hibernate.jdbc.time_zone=UTC`. MySQL DATETIME no guarda una zona:
+su contenido se interpreta como UTC por este contrato, no por la zona del servidor.
+No hay DEFAULT CURRENT_TIMESTAMP ni ON UPDATE; el futuro servicio asignará
+Instant con precisión de microsegundos (por ejemplo, `truncatedTo(MICROS)`).
+Las futuras respuestas deben serializar Instant como ISO-8601 UTC con `Z`;
+no añadir `Z` a un LocalDateTime. Las entidades heredadas no se han cambiado.
+Una sesión MySQL de verificación puede mostrar otra zona: no transforma por sí
+sola DATETIME. Las escrituras manuales futuras deberán respetar UTC explícitamente.
+
+#### Consultas de verificación (solo para ejecución manual posterior)
+
+```sql
+SELECT VERSION(), @@session.time_zone, @@global.time_zone;
+SHOW TABLES FROM checkpoint_store_ventas;
+SHOW CREATE TABLE checkpoint_store_ventas.pedidos;
+SHOW CREATE TABLE checkpoint_store_ventas.detalle_pedidos;
+SHOW INDEX FROM checkpoint_store_ventas.pedidos;
+SHOW INDEX FROM checkpoint_store_ventas.detalle_pedidos;
+
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE,
+       COLUMN_DEFAULT, DATETIME_PRECISION, EXTRA, COLLATION_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND TABLE_NAME IN ('pedidos', 'detalle_pedidos')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE, tc.ENFORCED
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.CHECK_CONSTRAINTS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND tc.TABLE_NAME IN ('pedidos', 'detalle_pedidos')
+  AND tc.CONSTRAINT_TYPE = 'CHECK'
+ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME;
+
+SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, UPDATE_RULE, DELETE_RULE
+FROM information_schema.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA = 'checkpoint_store_ventas'
+  AND TABLE_NAME = 'detalle_pedidos';
+
+SELECT COUNT(*) AS pedidos FROM checkpoint_store_ventas.pedidos;
+SELECT COUNT(*) AS detalles FROM checkpoint_store_ventas.detalle_pedidos;
+SHOW GRANTS FOR CURRENT_USER();
+```
+
+Esperado: cuatro tablas de negocio en total (las dos antiguas más las dos
+nuevas), nuevas tablas vacías; PK BIGINT autoincrementales; cinco DATETIME(6)
+en pedidos (dos obligatorias, tres opcionales); tres UNIQUE y cuatro índices
+de consulta explícitos en el conjunto nuevo; FK local RESTRICT; CHECK ENFORCED=YES.
+Los índices UNIQUE también son índices: no duplicarlos.
+SHOW GRANTS con la cuenta de aplicación debe incluir SELECT sobre la base.
+
+#### Validación mínima del arranque, después de revisar y aplicar 02
+
+1. Usar la consola B indicada abajo, con el ejemplo actualizado y las variables
+   ya utilizadas. Para validar solo mapping, establecer además
+   `$env:EUREKA_CLIENT_ENABLED = 'false'` en esa consola dedicada: no hace falta
+   iniciar otros microservicios para esta comprobación estructural.
+2. Iniciar Ventas manualmente y comprobar arranque completo sin errores
+   Schema-validation, manteniendo `ddl-auto=validate`. Una tabla ausente o un
+   tipo incompatible debe impedir el arranque; no usar update/create.
+3. Repetir los dos conteos de tablas nuevas: deben seguir en cero.
+4. Detener Ventas y cerrar la consola (la desactivación de Eureka era puntual).
+
+No hace falta Postman para este paso: no se añadió ninguna API. No repetir
+compras ni intentar insertar datos para validar reglas todavía no implementadas.
+Compilar e inspeccionar mapping/SQL no certifica ejecución real en MySQL.
 
 ## 2. Configuración y arranque aislado
 
@@ -153,8 +278,9 @@ SELECT COUNT(*) AS ventas FROM checkpoint_store_ventas.ventas;
 SELECT COUNT(*) AS detalles FROM checkpoint_store_ventas.detalle_ventas;
 ```
 
-Esperado: únicamente las dos tablas de negocio, sin tablas de control del
-migrador; PK autoincrementales, columnas obligatorias, FK e índice del detalle.
+Esperado: las dos tablas heredadas y, tras aplicar 02, las dos tablas de pedidos,
+sin tablas de control del migrador; PK autoincrementales, columnas obligatorias,
+FK e índices de detalles.
 Ambos conteos deben ser 0 antes y después. La estructura debe permanecer igual.
 Hibernate no sustituye la inspección de restricciones con SHOW CREATE TABLE.
 

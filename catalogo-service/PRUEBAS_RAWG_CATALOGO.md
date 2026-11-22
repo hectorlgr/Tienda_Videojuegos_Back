@@ -23,37 +23,15 @@ No registra solicitudes ni excepciones externas ni conserva sus causas.
 No activar trazas HTTP de JDK (`jdk.httpclient.HttpClient.log`) al probar con
 credenciales reales: podrían imprimir la URL externa.
 
-### Lanzador existente (sin modificaciones)
+### Lanzador de doble clic
 
-`iniciar_identidad.ps1` inicia procesos que heredan el entorno. Su lista de
-variables que limpia no incluye RAWG_API_KEY. Por tanto, para probar basta con
-definirla en la sesión PowerShell antes de invocar el BAT desde ESA sesión.
-No es necesario modificar el lanzador ni usar setx.
+Abrir `iniciar_checkpoint_local.bat`. El auxiliar reutiliza RAWG_API_KEY si
+ya la heredó; si falta, la solicita con entrada oculta. Enter permite omitirla
+y continuar con el CRUD local. Solo el proceso de Catálogo recibe la clave.
+No se necesita configurar PowerShell manualmente ni usar setx.
 
-Entrada oculta, sin escribir el valor literal en el historial:
-
-```powershell
-$clave = Read-Host 'RAWG API key' -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($clave)
-try {
-    $env:RAWG_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-} finally {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-    $clave.Dispose()
-}
-try {
-    .\iniciar_checkpoint_local.bat
-} finally {
-    Remove-Item Env:RAWG_API_KEY -ErrorAction SilentlyContinue
-}
-```
-
-Los procesos ya iniciados conservan su copia del entorno. Con el lanzador
-actual todos los procesos hijos heredan la variable, aunque solo Catálogo la
-consume. El ajuste mínimo futuro para limitarla a Catálogo sería asignarla
-solo alrededor de Start-ServiceWindow 'catalogo-service' y retirarla antes
-de iniciar Gateway, manteniéndola ausente al iniciar Eureka e Identidad.
-No se ha aplicado ese cambio. No incluir claves en colecciones exportadas.
+Instrucciones completas y detención: `../ARRANQUE_LOCAL_WINDOWS.md`.
+`iniciar_identidad.bat` no solicita RAWG. No incluir claves en colecciones exportadas.
 
 ## Seguridad y enrutamiento
 

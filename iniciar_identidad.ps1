@@ -65,6 +65,7 @@ $names = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET',
     'BOOTSTRAP_ADMIN_ENABLED', 'EUREKA_URL')
 if ($IncluirCatalogo) {
     $names += @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
+        'RAWG_API_KEY',
         'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL',
         'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION', 'SPRING_CONFIG_IMPORT',
         'SPRING_PROFILES_ACTIVE', 'SPRING_PROFILES_INCLUDE', 'SPRING_APPLICATION_JSON',
@@ -81,6 +82,7 @@ foreach ($name in $names) {
     $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 $password = $null
+$rawgSecret = $null
 $rng = $null
 $exitCode = 0
 try {
@@ -148,6 +150,14 @@ try {
         throw 'La contrasena no puede estar vacia.'
     }
 
+    if ($IncluirCatalogo) {
+        if ([string]::IsNullOrWhiteSpace($previous['RAWG_API_KEY'])) {
+            $rawgSecret = Read-Host 'RAWG API key (entrada oculta; Enter para omitir)' -AsSecureString
+        } else {
+            Write-Host 'RAWG: se reutilizara la clave del entorno.'
+        }
+    }
+
     # Eureka no necesita credenciales de la base ni la clave JWT.
     foreach ($name in @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET')) {
         [Environment]::SetEnvironmentVariable($name, $null, 'Process')
@@ -203,7 +213,29 @@ try {
         if ([string]::IsNullOrWhiteSpace($env:CATALOGO_PUBLIC_BASE_URL)) {
             $env:CATALOGO_PUBLIC_BASE_URL = 'http://localhost:9090'
         }
-        Start-ServiceWindow 'catalogo-service' 9091
+        # Solo Catalogo hereda RAWG. No incluir la clave en argumentos ni archivos.
+        try {
+            if ($null -ne $rawgSecret) {
+                $rawgPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($rawgSecret)
+                try {
+                    $env:RAWG_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($rawgPointer)
+                } finally {
+                    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($rawgPointer)
+                    $rawgSecret.Dispose()
+                    $rawgSecret = $null
+                }
+            } else {
+                $env:RAWG_API_KEY = $previous['RAWG_API_KEY']
+            }
+            if ([string]::IsNullOrWhiteSpace($env:RAWG_API_KEY)) {
+                [Environment]::SetEnvironmentVariable('RAWG_API_KEY', $null, 'Process')
+                Write-Host 'RAWG omitido: el CRUD local seguira disponible.'
+            }
+            Start-ServiceWindow 'catalogo-service' 9091
+        } finally {
+            # Start-Process ya entrego una copia del entorno al hijo.
+            [Environment]::SetEnvironmentVariable('RAWG_API_KEY', $null, 'Process')
+        }
         foreach ($name in @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
                 'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL')) {
             [Environment]::SetEnvironmentVariable($name, $null, 'Process')
@@ -234,6 +266,7 @@ try {
         [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process')
     }
     if ($null -ne $password) { $password.Dispose() }
+    if ($null -ne $rawgSecret) { $rawgSecret.Dispose() }
     if ($null -ne $rng) { $rng.Dispose() }
 }
 exit $exitCode

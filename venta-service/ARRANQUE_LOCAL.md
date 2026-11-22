@@ -1,4 +1,4 @@
-# Ventas — configuración local y esquema manual (actualizado en etapa 3.1)
+# Ventas — configuración local y esquema manual (actualizado en etapa 3.2)
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
 repositorio. Para el recorrido por Gateway también se necesitan Eureka y Gateway.
@@ -10,6 +10,9 @@ añade JWT local y bloquea las operaciones heredadas inseguras; las comprobacion
 negativas del bloqueo están en [SEGURIDAD_VENTAS.md](SEGURIDAD_VENTAS.md).
 La etapa 3.1 incorpora únicamente el mapping persistente de pedidos, sin API,
 checkout, pagos ni integración con Identidad/Catálogo.
+La etapa 3.2 añade exclusivamente los cuatro GET documentados en
+[CONSULTAS_PEDIDOS.md](CONSULTAS_PEDIDOS.md), con permisos en Ventas y Gateway.
+No requiere SQL adicional ni ampliar los permisos de lectura de MySQL.
 No necesita arrancar Usuarios, Inventario, Promociones, Pedidos ni Despachos
 para consultar la colección vacía.
 

@@ -43,6 +43,17 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.GET, "/auth/v3/api-docs", "/auth/v3/api-docs/**")
                                                 .permitAll()
                                                 .pathMatchers("/auth/**").denyAll()
+                                                // Pedidos nuevos: el literal debe ir antes del patrón {id}.
+                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos")
+                                                .hasRole("CLIENTE")
+                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/{id}")
+                                                .hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/admin/pedidos", "/api/admin/pedidos/{id}")
+                                                .hasRole("ADMINISTRADOR")
+                                                // Antes de Swagger genérico: sin rutas ni escrituras heredadas.
+                                                .pathMatchers("/api/pedidos", "/api/pedidos/**",
+                                                                "/api/admin/pedidos", "/api/admin/pedidos/**").denyAll()
                                                 // Ventas: lista cerrada antes de las excepciones genéricas de Swagger.
                                                 .pathMatchers(HttpMethod.GET,
                                                                 "/api/ventas/v3/api-docs", "/api/ventas/v3/api-docs/**")
@@ -103,14 +114,6 @@ public class SecurityConfig {
 
                                                 // PROMOCIONES
                                                 .pathMatchers("/api/promociones/**").hasRole("ADMINISTRADOR")
-
-                                                // PEDIDOS
-                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/usuario/*")
-                                                .hasAnyRole("ADMINISTRADOR", "VENDEDOR")
-                                                .pathMatchers(HttpMethod.POST, "/api/pedidos").hasRole("ADMINISTRADOR")
-                                                .pathMatchers(HttpMethod.PUT, "/api/pedidos/*/estado",
-                                                                "/api/pedidos/*/cancelar")
-                                                .hasRole("ADMINISTRADOR")
 
                                                 // Incluye rutas de los módulos retirados y operaciones no definidas.
                                                 .anyExchange().denyAll())

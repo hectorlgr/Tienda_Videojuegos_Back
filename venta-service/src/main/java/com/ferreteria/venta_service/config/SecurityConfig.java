@@ -1,6 +1,6 @@
 package com.ferreteria.venta_service.config;
 
-import java.math.BigDecimal;
+import com.ferreteria.venta_service.security.JwtUserId;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import javax.crypto.spec.SecretKeySpec;
@@ -49,6 +49,13 @@ public class SecurityConfig {
                         // Despacho interno de errores; no abre /error a peticiones externas.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/{id}")
+                        .hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/pedidos", "/api/admin/pedidos/{id}")
+                        .hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/pedidos", "/api/pedidos/**",
+                                "/api/admin/pedidos", "/api/admin/pedidos/**").denyAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/ventas/v3/api-docs", "/api/ventas/v3/api-docs/**",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()
@@ -84,7 +91,7 @@ public class SecurityConfig {
     }
 
     private OAuth2TokenValidatorResult validateIdentity(Jwt jwt) {
-        if (jwt.getExpiresAt() != null && hasValidUserId(jwt)
+        if (jwt.getExpiresAt() != null && JwtUserId.getValidId(jwt) != null
                 && jwt.getClaims().get("role") instanceof String role && ROLES.contains(role)) {
             return OAuth2TokenValidatorResult.success();
         }
@@ -92,15 +99,4 @@ public class SecurityConfig {
                 new OAuth2Error("invalid_token", "El token no contiene una identidad, rol o expiración válida", null));
     }
 
-    // Mismo contrato numérico que Identidad: entero positivo representable como Long.
-    private boolean hasValidUserId(Jwt jwt) {
-        if (jwt.getClaims().get("userId") instanceof Number number) {
-            try {
-                return new BigDecimal(number.toString()).longValueExact() > 0;
-            } catch (IllegalArgumentException | ArithmeticException e) {
-                return false;
-            }
-        }
-        return false;
-    }
 }

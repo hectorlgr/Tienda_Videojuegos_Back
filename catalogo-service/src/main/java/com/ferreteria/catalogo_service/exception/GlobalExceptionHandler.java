@@ -22,6 +22,25 @@ import jakarta.persistence.PessimisticLockException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleImagenGrande(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE,
+                "Máximo 5 MiB por archivo y 6 MiB por solicitud multipart.", request.getRequestURI());
+    }
+
+    @ExceptionHandler({org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.multipart.MultipartException.class})
+    public ResponseEntity<ApiErrorResponse> handleMultipart(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Envíe una imagen mediante multipart/form-data en el campo archivo.", request.getRequestURI());
+    }
+
+    @ExceptionHandler(ImagenStorageException.class)
+    public ResponseEntity<ApiErrorResponse> handleImagenStorage(ImagenStorageException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(RawgException.class)
     public ResponseEntity<java.util.Map<String, Object>> handleRawg(RawgException ex,
             HttpServletRequest request) {
@@ -50,7 +69,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<ApiErrorResponse> handleValidation(Exception ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST,
-                "Datos inválidos: revise nombre, categoría, longitudes, precio, oferta, stock, stockEsperado y cantidad.",
+                "Datos inválidos: revise SKU, campos obligatorios de categoría, longitudes, URL de imágenes, precio, oferta, stock, stockCritico, stockEsperado y cantidad.",
                 request.getRequestURI());
     }
 
@@ -63,6 +82,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleIntegrity(Exception ex, HttpServletRequest request) {
+        // Identificar solo la restricción de SKU; no exponer mensajes SQL al cliente.
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && violation.getConstraintName() != null
+                    && violation.getConstraintName().toLowerCase(java.util.Locale.ROOT)
+                            .contains("uq_producto_codigo")) {
+                return buildResponse(HttpStatus.CONFLICT,
+                        "El código SKU ya pertenece a otro producto.", request.getRequestURI());
+            }
+        }
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "Los datos no cumplen las restricciones del producto.", request.getRequestURI());
     }

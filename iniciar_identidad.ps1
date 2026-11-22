@@ -65,6 +65,7 @@ $names = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET',
     'BOOTSTRAP_ADMIN_ENABLED', 'EUREKA_URL')
 if ($IncluirCatalogo) {
     $names += @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
+        'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL',
         'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION', 'SPRING_CONFIG_IMPORT',
         'SPRING_PROFILES_ACTIVE', 'SPRING_PROFILES_INCLUDE', 'SPRING_APPLICATION_JSON',
         'SPRING_DATASOURCE_URL', 'SPRING_DATASOURCE_USERNAME', 'SPRING_DATASOURCE_PASSWORD',
@@ -193,8 +194,18 @@ try {
         Test-Registration 'IDENTIDAD-SERVICE'
     }
     if ($IncluirCatalogo) {
+        # Ruta persistente fuera del repo. Respetar configuración externa si existe.
+        $env:CATALOGO_IMAGENES_DIR = $previous['CATALOGO_IMAGENES_DIR']
+        if ([string]::IsNullOrWhiteSpace($env:CATALOGO_IMAGENES_DIR)) {
+            $env:CATALOGO_IMAGENES_DIR = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'CheckPointStore\imagenes'
+        }
+        $env:CATALOGO_PUBLIC_BASE_URL = $previous['CATALOGO_PUBLIC_BASE_URL']
+        if ([string]::IsNullOrWhiteSpace($env:CATALOGO_PUBLIC_BASE_URL)) {
+            $env:CATALOGO_PUBLIC_BASE_URL = 'http://localhost:9090'
+        }
         Start-ServiceWindow 'catalogo-service' 9091
-        foreach ($name in @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD')) {
+        foreach ($name in @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
+                'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL')) {
             [Environment]::SetEnvironmentVariable($name, $null, 'Process')
         }
         Wait-Ready 'Catalogo HTTP' { Test-Http 'http://127.0.0.1:9091/api/productos/v3/api-docs' }

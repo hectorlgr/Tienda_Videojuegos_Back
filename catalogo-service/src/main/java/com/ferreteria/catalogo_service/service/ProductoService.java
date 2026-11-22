@@ -4,6 +4,10 @@ import com.ferreteria.catalogo_service.exception.ResourceNotFoundException;
 import com.ferreteria.catalogo_service.exception.BadRequestException;
 import com.ferreteria.catalogo_service.exception.ConflictException;
 import com.ferreteria.catalogo_service.model.Producto;
+import com.ferreteria.catalogo_service.model.ProductoImagen;
+import com.ferreteria.catalogo_service.model.ProductoCompleto;
+import jakarta.validation.groups.Default;
+import org.hibernate.Hibernate;
 import com.ferreteria.catalogo_service.repository.ProductoRepository;
 import com.ferreteria.catalogo_service.Dto.ProductoCrearRequestDto;
 import com.ferreteria.catalogo_service.Dto.ProductoRequestDto;
@@ -33,14 +37,17 @@ public class ProductoService {
                 : productoRepository.findByCategoriaAndHabilitadoTrue(categoria);
     }
 
+    @Transactional
     public Producto crearProducto(ProductoCrearRequestDto dto) {
         var errores = validator.validate(dto);
         if (!errores.isEmpty()) {
             throw new ConstraintViolationException(errores);
         }
+        comprobarCodigo(dto.getCodigo(), null);
         // MySQL genera el ID. rawgId se reserva para la futura importación.
         Producto producto = new Producto();
         aplicarCamposEditables(producto, dto);
+        agregarImagenes(producto, dto.getImagenes());
         return guardarProducto(producto);
     }
 
@@ -58,6 +65,32 @@ public class ProductoService {
         producto.setEnOferta(dto.getEnOferta());
         producto.setStock(dto.getStock());
         producto.setHabilitado(dto.getHabilitado());
+        producto.setCodigo(dto.getCodigo());
+        producto.setDescripcionCorta(dto.getDescripcionCorta());
+        producto.setFormato(dto.getFormato());
+        producto.setEcosistema(dto.getEcosistema());
+        producto.setCompatibilidad(dto.getCompatibilidad());
+        producto.setFranquicia(dto.getFranquicia());
+        producto.setStockCritico(dto.getStockCritico());
+    }
+
+    private void comprobarCodigo(String codigo, Long id) {
+        boolean existe = id == null ? productoRepository.existsByCodigo(codigo)
+                : productoRepository.existsByCodigoAndIdNot(codigo, id);
+        if (existe) {
+            throw new ConflictException("El código SKU ya pertenece a otro producto.");
+        }
+    }
+
+    private void agregarImagenes(Producto producto, List<String> urls) {
+        if (urls == null) return;
+        for (int i = 0; i < urls.size(); i++) {
+            ProductoImagen imagen = new ProductoImagen();
+            imagen.setProducto(producto);
+            imagen.setUrl(urls.get(i));
+            imagen.setOrden(i + 1);
+            producto.getImagenesAdicionales().add(imagen);
+        }
     }
 
     // Método para obtener todos los productos habilitados
@@ -85,11 +118,11 @@ public class ProductoService {
         logger.info("Registrando nuevo producto: {}", producto.getNombre());
         logger.debug("Precio a registrar: {}", producto.getPrecio());
 
-        var errores = validator.validate(producto);
+        var errores = validator.validate(producto, Default.class, ProductoCompleto.class);
         if (!errores.isEmpty()) {
             throw new ConstraintViolationException(errores);
         }
-        Producto productoGuardado = productoRepository.save(producto);
+        Producto productoGuardado = productoRepository.saveAndFlush(producto);
         logger.debug("Producto guardado temporalmente con ID interno: {}", productoGuardado.getId());
 
         return productoGuardado;
@@ -107,12 +140,22 @@ public class ProductoService {
         if (!productoExistente.getStock().equals(dto.getStockEsperado())) {
             throw new ConflictException("El stock cambió desde la consulta. Recargue el producto antes de editar.");
         }
+        comprobarCodigo(dto.getCodigo(), id);
+        // Cargar dentro de la transacción: el DTO se construye fuera del servicio.
+        Hibernate.initialize(productoExistente.getImagenesAdicionales());
+        if (dto.getImagenes() != null) {
+            productoExistente.getImagenesAdicionales().clear();
+            // orphanRemoval debe borrar antes de reutilizar las posiciones 1..4.
+            // El flush NO confirma: cualquier fallo posterior revierte todo.
+            productoRepository.flush();
+            agregarImagenes(productoExistente, dto.getImagenes());
+        }
         aplicarCamposEditables(productoExistente, dto);
-        var erroresProducto = validator.validate(productoExistente);
+        var erroresProducto = validator.validate(productoExistente, Default.class, ProductoCompleto.class);
         if (!erroresProducto.isEmpty()) {
             throw new ConstraintViolationException(erroresProducto);
         }
-        return productoRepository.save(productoExistente);
+        return productoRepository.saveAndFlush(productoExistente);
     }
 
     // Baja lógica local e idempotente; conserva stock y demás datos.
@@ -140,6 +183,7 @@ public class ProductoService {
             throw new ConflictException("La entrada supera el máximo de stock permitido.");
         }
         producto.setStock((int) nuevoStock);
+        Hibernate.initialize(producto.getImagenesAdicionales());
         return productoRepository.save(producto);
     }
 
@@ -153,6 +197,7 @@ public class ProductoService {
             throw new ConflictException("Stock insuficiente para el producto ID " + id);
         }
         producto.setStock(producto.getStock() - cantidad);
+        Hibernate.initialize(producto.getImagenesAdicionales());
         return productoRepository.save(producto);
     }
 

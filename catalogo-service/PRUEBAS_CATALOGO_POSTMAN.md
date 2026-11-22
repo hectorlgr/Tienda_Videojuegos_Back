@@ -11,18 +11,23 @@ No se ejecutaron peticiones ni inserciones durante la implementación.
 - GET `/api/productos/{id}`: 200, ProductoResponseDto con `_links`; 404 si
   no existe o está deshabilitado.
 
-Entrada: nombre, categoria, descripcion, marca, plataforma, genero, imagenUrl,
-precio, precioOferta, enOferta, stock y habilitado.
-nombre/categoria/precio son obligatorios. Si se omiten stock/enOferta/habilitado,
+Contrato completo y reglas de imágenes: `FORMULARIO_PRODUCTOS_HTTP.md`.
+Entrada: codigo, nombre, categoria, descripcionCorta, descripcion, marca,
+plataforma, genero, formato, ecosistema, compatibilidad, franquicia, imagenUrl,
+imagenes, precio, precioOferta, enOferta, stock, stockCritico y habilitado.
+codigo/nombre/categoria/precio son obligatorios. Si se omiten stock/enOferta/habilitado,
 se usan 0/false/true; enviarlos como null se rechaza. Marca y metadatos son
-opcionales en las cuatro categorías. precioOferta es opcional pero, si existe,
+opcionales salvo: VIDEOJUEGO exige formato/plataforma; CONSOLA ecosistema;
+ACCESORIO compatibilidad; FIGURA franquicia. precioOferta es opcional pero, si existe,
 debe ser positivo; con enOferta=true debe ser inferior a precio.
 No hay id ni rawgId en el DTO de entrada: el servidor no los mapea desde el JSON.
 MySQL genera id y rawgId queda null en las altas manuales.
 
 Salida: id, nombre, categoria, descripcion, marca, plataforma, genero, imagenUrl,
 precio, precioOferta, enOferta, stock, habilitado, rawgId, precioEfectivo y
-disponible. precioEfectivo usa el cálculo de Producto y no sustituye los precios
+disponible; incluye además codigo, descripcionCorta, formato, ecosistema,
+compatibilidad, franquicia, stockCritico e imagenes ordenadas.
+precioEfectivo usa el cálculo de Producto y no sustituye los precios
 almacenados. disponible = habilitado && stock > 0.
 
 La consulta pública siempre filtra habilitado=true, incluso con filtro de
@@ -63,13 +68,18 @@ y categoria. Guardar los IDs devueltos; no asumir una secuencia fija.
 
 ```json
 {
+  "codigo": "JUE-001",
   "nombre": "Videojuego de aventura",
   "categoria": "VIDEOJUEGO",
   "descripcion": "Edición física",
   "marca": "Editorial de juegos",
   "plataforma": "PS5",
   "genero": "Aventura",
+  "formato": "FISICO",
+  "descripcionCorta": "Aventura para PS5",
+  "stockCritico": 2,
   "imagenUrl": "https://example.com/videojuego.jpg",
+  "imagenes": ["https://example.com/juego-frente.jpg", "https://example.com/juego-dorso.jpg"],
   "precio": 59990,
   "precioOferta": 44990,
   "enOferta": true,
@@ -84,9 +94,12 @@ Esperado: precioEfectivo=44990 y disponible=true.
 
 ```json
 {
+  "codigo": "CON-002",
   "nombre": "Consola de sobremesa",
   "categoria": "CONSOLA",
   "descripcion": "Consola con mando",
+  "ecosistema": "PlayStation",
+  "imagenes": ["https://example.com/consola-lateral.jpg"],
   "precio": 499990,
   "stock": 3
 }
@@ -98,8 +111,13 @@ Esperado: enOferta=false, habilitado=true, precioEfectivo=499990.
 
 ```json
 {
+  "codigo": "ACC-001",
   "nombre": "Mando inalámbrico",
   "categoria": "ACCESORIO",
+  "compatibilidad": "PC y PS5",
+  "ecosistema": "PlayStation",
+  "imagenUrl": "http://example.com/mando.jpg",
+  "imagenes": [],
   "precio": 49990
 }
 ```
@@ -110,8 +128,11 @@ Esperado: stock=0, habilitado=true, disponible=false; sigue visible en GET.
 
 ```json
 {
+  "codigo": "FIG-001",
   "nombre": "Figura de colección",
   "categoria": "FIGURA",
+  "franquicia": "The Legend of Zelda",
+  "imagenes": ["https://example.com/figura-lateral.jpg"],
   "precio": 29990,
   "stock": 2,
   "habilitado": false
@@ -120,6 +141,13 @@ Esperado: stock=0, habilitado=true, disponible=false; sigue visible en GET.
 
 Esperado: 201, disponible=false. Su ID devuelve 404 en GET y no aparece
 en listados públicos, tampoco con categoria=FIGURA.
+
+Los SKU son ilustrativos: elegir valores libres antes de ejecutar.
+CON-001 ya pertenece a la consola existente; no usarlo para otro POST.
+Los dominios example.com son ejemplos de formato; no se verifica ni descarga
+la imagen remota. El POST puede guardar esas URLs sin garantizar que existan.
+SKU duplicado (incluido producto oculto): 409. La protección concurrente
+requiere activar antes el índice de 04_exigir_producto_completo.sql.
 
 ## GET y casos negativos
 

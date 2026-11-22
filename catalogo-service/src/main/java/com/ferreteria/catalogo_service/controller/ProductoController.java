@@ -94,6 +94,7 @@ public class ProductoController {
     @Operation(summary = "Registrar un nuevo producto", description = "Crea un nuevo artículo en el catálogo. Requiere validar los datos de entrada.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Producto creado exitosamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductoResponseDto.class))),
+            @ApiResponse(responseCode = "409", description = "SKU duplicado", content = @Content),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos", content = @Content)
     })
     @PostMapping
@@ -111,7 +112,7 @@ public class ProductoController {
     @Operation(summary = "Actualizar producto", description = "Requiere stockEsperado. Si difiere del stock actual, devuelve 409 sin modificar el producto.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductoResponseDto.class))),
-            @ApiResponse(responseCode = "409", description = "Stock desactualizado o conflicto de bloqueo", content = @Content),
+            @ApiResponse(responseCode = "409", description = "SKU duplicado, stock desactualizado o conflicto de bloqueo", content = @Content),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos", content = @Content),
             @ApiResponse(responseCode = "404", description = "El producto a actualizar no fue encontrado", content = @Content)
     })

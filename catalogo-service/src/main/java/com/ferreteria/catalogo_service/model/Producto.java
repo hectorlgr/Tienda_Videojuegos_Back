@@ -6,6 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
+import java.util.ArrayList;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -77,6 +82,58 @@ public class Producto {
 
     @Column(name = "rawg_id")
     private Long rawgId;
+
+    // Fase transitoria: nullable hasta adaptar DTO/formulario y completar los datos.
+    @Size(max = 64)
+    @Pattern(regexp = ".*\\S.*", message = "El código no puede estar vacío")
+    @NotBlank(groups = ProductoCompleto.class)
+    @Column(length = 64)
+    private String codigo;
+
+    @Size(max = 500)
+    @Column(name = "descripcion_corta", length = 500)
+    private String descripcionCorta;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 10)
+    private FormatoProducto formato;
+
+    @Size(max = 100)
+    @Column(length = 100)
+    private String ecosistema;
+
+    @Size(max = 255)
+    @Column(length = 255)
+    private String compatibilidad;
+
+    @Size(max = 255)
+    @Column(length = 255)
+    private String franquicia;
+
+    @PositiveOrZero
+    @Column(name = "stock_critico")
+    private Integer stockCritico;
+
+    // La colección no forma parte de los contratos HTTP actuales.
+    @JsonIgnore
+    @OneToMany(mappedBy = "producto", cascade = {CascadeType.PERSIST, CascadeType.MERGE},
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("orden ASC")
+    @Size(max = 4)
+    private List<ProductoImagen> imagenesAdicionales = new ArrayList<>();
+
+    @AssertTrue(groups = ProductoCompleto.class,
+            message = "Debe completar el campo específico de la categoría")
+    private boolean isCamposCategoriaCompletos() {
+        if (categoria == null) return false;
+        return switch (categoria) {
+            case VIDEOJUEGO -> formato != null && plataforma != null && !plataforma.isBlank();
+            case CONSOLA -> ecosistema != null && !ecosistema.isBlank();
+            case ACCESORIO -> compatibilidad != null && !compatibilidad.isBlank();
+            case FIGURA -> franquicia != null && !franquicia.isBlank();
+        };
+    }
 
     @AssertTrue(message = "Una oferta activa requiere un precio de oferta positivo e inferior al precio normal")
     private boolean isOfertaValida() {

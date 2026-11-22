@@ -6,7 +6,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.Setter;
 
-@Schema(name = "ProductoRequest", description = "Estado completo editable. Requiere stockEsperado con el stock leído antes de editar.")
+@Schema(name = "ProductoRequest", description = "Estado completo editable con SKU y reglas por categoría. Requiere stockEsperado. imagenes omitido/null conserva la galería; [] la elimina.")
 public class ProductoRequestDto extends ProductoCrearRequestDto {
     @Getter
     @Setter

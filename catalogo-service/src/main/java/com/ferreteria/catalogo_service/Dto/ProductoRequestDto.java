@@ -1,27 +1,24 @@
 package com.ferreteria.catalogo_service.Dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import lombok.Data;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-@Schema(name = "ProductoRequest", description = "Modelo para la creación o actualización de un producto en el catálogo")
-public class ProductoRequestDto {
+@Schema(name = "ProductoRequest", description = "Estado completo editable con SKU y reglas por categoría. Requiere stockEsperado. imagenes omitido/null conserva la galería; [] la elimina.")
+public class ProductoRequestDto extends ProductoCrearRequestDto {
+    @Getter
+    @Setter
+    @NotNull
+    @PositiveOrZero
+    @Schema(description = "Stock observado antes de editar. Si cambió, se devuelve 409 sin modificar el producto.", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Integer stockEsperado;
 
-    @Schema(description = "Nombre comercial del producto de ferretería", example = "Martillo de Uña 16oz", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "El nombre no puede estar vacío")
-    private String nombre;
-
-    @Schema(description = "Descripción detallada de las especificaciones del artículo", example = "Martillo con mango de fibra de vidrio anti-vibración")
-    private String descripcion;
-
-    @Schema(description = "Marca del fabricante del producto", example = "Stanley")
-    private String marca;
-
-    @Schema(description = "Precio unitario neto del producto en pesos chilenos", example = "14990.00", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "El precio es obligatorio")
-    @Positive(message = "El precio debe ser un valor positivo")
-    private Integer precio;
+    public ProductoRequestDto() {
+        // Reutiliza campos y validaciones del POST, sin aplicar defaults de alta al editar.
+        setStock(null);
+        setEnOferta(null);
+        setHabilitado(null);
+    }
 }

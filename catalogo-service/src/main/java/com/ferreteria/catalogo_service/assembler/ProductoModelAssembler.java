@@ -9,14 +9,15 @@ import org.springframework.stereotype.Component;
 
 import com.ferreteria.catalogo_service.controller.ProductoController;
 import com.ferreteria.catalogo_service.model.Producto;
+import com.ferreteria.catalogo_service.Dto.ProductoResponseDto;
 
 @Component
-public class ProductoModelAssembler implements RepresentationModelAssembler<Producto, EntityModel<Producto>> {
+public class ProductoModelAssembler implements RepresentationModelAssembler<Producto, EntityModel<ProductoResponseDto>> {
 
     @Override
-    public EntityModel<Producto> toModel(Producto producto) {
-        return EntityModel.of(producto,
+    public EntityModel<ProductoResponseDto> toModel(Producto producto) {
+        return EntityModel.of(ProductoResponseDto.from(producto),
                 linkTo(methodOn(ProductoController.class).obtenerPorId(producto.getId())).withSelfRel(),
-                linkTo(methodOn(ProductoController.class).obtenerTodos()).withRel("todos-los-productos"));
+                linkTo(methodOn(ProductoController.class).obtenerTodos(null)).withRel("todos-los-productos"));
     }
 }

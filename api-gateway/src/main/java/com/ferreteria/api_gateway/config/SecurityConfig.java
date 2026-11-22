@@ -2,6 +2,7 @@ package com.ferreteria.api_gateway.config;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.List;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +20,8 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -30,6 +33,7 @@ public class SecurityConfig {
         @Bean
         public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
                 return http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
                                 .authorizeExchange(exchanges -> exchanges
                                                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
@@ -51,9 +55,26 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // PRODUCTOS (CATÁLOGO)
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/admin/productos", "/api/admin/productos/{id}")
+                                                .hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.POST, "/api/productos/rawg/{rawgId}/importar")
+                                                .hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.POST, "/api/productos/imagenes/subir")
+                                                .hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.GET, "/api/productos/imagenes/{nombre}")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/productos/rawg/buscar",
+                                                                "/api/productos/rawg/{rawgId}")
+                                                .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.GET, "/api/productos", "/api/productos/*")
                                                 .permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/api/productos").hasRole("ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.POST,
+                                                                "/api/productos/*/stock/entradas",
+                                                                "/api/productos/*/stock/salidas")
+                                                .hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.PUT, "/api/productos/*").hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.DELETE, "/api/productos/*").hasRole("ADMINISTRADOR")
 
@@ -91,6 +112,23 @@ public class SecurityConfig {
                                                 .jwt(jwt -> jwt.jwtAuthenticationConverter(
                                                                 jwtAuthenticationConverter())))
                                 .build();
+        }
+
+        // Una sola política, aplicada por Spring Security antes de autenticar.
+        // No registrar además CorsWebFilter ni globalcors en application.yml.
+        private UrlBasedCorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration cors = new CorsConfiguration();
+                cors.setAllowedOrigins(List.of(
+                                "http://localhost:5173",
+                                "http://127.0.0.1:5173"));
+                cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                cors.setAllowCredentials(false);
+                cors.setMaxAge(600L);
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", cors);
+                return source;
         }
 
         // Bean para leer la firma del token

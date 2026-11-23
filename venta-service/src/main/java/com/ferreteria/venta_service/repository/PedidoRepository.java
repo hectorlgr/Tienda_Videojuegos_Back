@@ -7,8 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-// Superficie de solo lectura: no expone save/delete ni usa repositorios heredados.
+// Persistencia de pedidos nuevos y consultas; sin borrado ni repositorios heredados.
 public interface PedidoRepository extends Repository<Pedido, Long> {
+    Pedido saveAndFlush(Pedido pedido);
+
+    @Query("select distinct p from Pedido p left join fetch p.detalles where p.operacionStockId = :operacion")
+    Optional<Pedido> buscarPorOperacionStock(@Param("operacion") String operacion);
+
+    Optional<Pedido> findByCompradorIdAndClaveIdempotencia(Long compradorId, String claveIdempotencia);
+
     @Query("""
             select distinct p from Pedido p left join fetch p.detalles
             where p.compradorId = :compradorId

@@ -204,7 +204,20 @@ public class SolicitudPedido {
         }
     }
 
-    private void exigirTokenVigente(UUID token, Instant ahora) {
+    /** Solo bajo bloqueo de fila en una transacción local. */
+    public void resolverConPedido(UUID token, Instant ahora, Long pedidoId) {
+        exigirTokenVigente(token, ahora);
+        exigirCheckoutParaDescuento();
+        resultado = new DatosCheckoutSolicitud.Resultado(1,
+                DatosCheckoutSolicitud.TipoResultado.PEDIDO_CREADO, "PEDIDO_CREADO",
+                ContratoStock.Estado.APLICADA, pedidoId);
+        estado = EstadoSolicitudPedido.RESUELTA;
+        tokenReclamacion = null;
+        bloqueoHasta = null;
+        actualizar(ahora);
+    }
+
+    public void exigirTokenVigente(UUID token, Instant ahora) {
         exigirAbierta();
         if (token == null || !token.toString().equals(tokenReclamacion)
                 || bloqueoHasta == null || !bloqueoHasta.isAfter(ahora)) {

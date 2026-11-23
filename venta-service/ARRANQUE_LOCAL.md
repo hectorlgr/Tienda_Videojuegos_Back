@@ -1,5 +1,10 @@
 # Ventas — configuración local y esquema manual (Etapa 4.6B.1)
 
+Etapa 4.6B.2: el usuario confirmó SQL 04 aplicado y Hibernate validate correcto.
+La materialización local requiere permisos adicionales de INSERT sobre pedidos
+y detalle_pedidos; ver [MATERIALIZACION_PEDIDO.md](MATERIALIZACION_PEDIDO.md)
+para permisos mínimos y verificaciones pendientes. No hay nuevo script SQL.
+
 **Instalación existente:** el usuario confirmó SQL 03 aplicado y validado con
 Hibernate. No repetir 01/02/03 si ya están aplicados. Se conserva `ddl-auto=validate`.
 La etapa 4.6B.1 requiere aplicar manualmente SQL 04 antes del próximo arranque:

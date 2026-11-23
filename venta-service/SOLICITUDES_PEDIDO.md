@@ -1,5 +1,9 @@
 # Solicitudes durables — Etapa 4.6B.1
 
+Actualización 4.6B.2: materialización y resolución exitosa disponibles en
+[MATERIALIZACION_PEDIDO.md](MATERIALIZACION_PEDIDO.md). Las referencias siguientes
+al futuro materializador describen la situación original de 4.6B.1.
+
 Solo servicio interno de persistencia. Sin endpoints, tareas programadas, pedidos
 comerciales, resolución ni invocaciones a CatalogoStockClient.
 SQL 03 permanece intacto y ya fue validado manualmente por el usuario.
@@ -236,7 +240,7 @@ Ejemplo estructural (no acredita que se haya realizado una reversión):
 RESUELTA exige resultado y reclamación nula. Todos los otros estados exigen
 resultado NULL. Compensación/cierre confirmados requieren conservar motivo;
 PEDIDO_CREADO y RECHAZO_LOCAL no permiten motivo de compensación.
-RECHAZO_DEFINITIVO admite motivo previo si Catálogo rechazó antes de descontar.
+RECHAZO_DEFINITIVO exige motivo de compensación NULL, conforme al SQL 04 aplicado.
 PEDIDO_CREADO exige también checkout/hash presentes.
 Sin FK JSON a pedidos: el futuro coordinador deberá verificar pedido existente y
 persistirlo junto con la resolución en la misma transacción local.

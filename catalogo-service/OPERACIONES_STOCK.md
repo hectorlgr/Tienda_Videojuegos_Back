@@ -1,13 +1,16 @@
-# Operaciones internas de stock — Etapa 4.2
+# Operaciones internas de stock — Núcleo Etapa 4.2
+
+La API autenticada de Etapa 4.3 está documentada en
+[`API_INTERNA_STOCK.md`](API_INTERNA_STOCK.md). Este documento describe el núcleo.
 
 ## Alcance y preparación
 
-Núcleo Java/JPA, sin controlador, autenticación de servicio ni consumidor HTTP.
+Núcleo Java/JPA independiente del adaptador HTTP de Etapa 4.3.
 No modifica las operaciones administrativas, Producto, RAWG ni imágenes.
 
 Script completo: `sql/07_crear_operaciones_stock.sql`. Es manual, aditivo y para
-MySQL 8.4. No se ha ejecutado. Crear la tabla antes del próximo arranque con
-`spring.jpa.hibernate.ddl-auto=validate`; Hibernate no la crea.
+MySQL 8.4. El usuario confirmó su aplicación y validación con Hibernate al cerrar
+4.2; no volver a ejecutarlo. Se conserva `spring.jpa.hibernate.ddl-auto=validate`.
 El DDL tiene commit implícito: ante errores, detenerse e inspeccionar.
 
 ## API interna
@@ -17,16 +20,15 @@ Bean: `OperacionStockService`. Valores inmutables: `DatosOperacionStock`.
 - `registrar(id, consumidor, solicitud)`: registra PENDIENTE o devuelve el registro
   existente si coincide. No aplica stock.
 - `aplicar(id, consumidor)`: aplica una operación registrada. Si ya es definitiva,
-  devuelve su estado sin modificarla; el futuro adaptador HTTP deberá traducir
+   devuelve su estado sin modificarla; el adaptador HTTP traduce
   RECHAZADA/CANCELADA/REVERTIDA al contrato correspondiente.
 - `consultar(id, consumidor)`: `Optional.empty()` significa inexistente, no cancelada.
 - `revertir(id, consumidor, solicitud)`: restituye desde el snapshot aplicado o
   registra/cierra CANCELADA preventivamente.
 
-El único consumidor permitido es `ConsumidorStock.VENTA_SERVICE`. No se recibe
-una cadena libre ni existe un endpoint que pueda suministrarlo. Esto **no es
-autenticación**: en 4.3 el adaptador debe derivarlo del principal de servicio
-validado, nunca del body, JWT humano ni cabeceras de identidad arbitrarias.
+El único consumidor permitido es `ConsumidorStock.VENTA_SERVICE`. El núcleo no
+autentica: el adaptador de 4.3 lo deriva del principal de servicio validado,
+nunca del body, JWT humano ni cabeceras de identidad arbitrarias.
 No serializar este argumento como campo del contrato HTTP.
 
 La solicitud es `Solicitud(1, List<Item>)`, con 1..100 productos, IDs Long positivos
@@ -122,7 +124,7 @@ Las escrituras SQL directas quedan fuera de las garantías transaccionales del s
 
 ## Verificación posterior en Workbench
 
-Ejecutar primero el script manual, cuando se autorice. Estas consultas son solo
+Con la tabla ya creada, estas consultas son solo
 lectura; no crean operaciones ni invocan la lógica Java.
 
 ```sql
@@ -186,8 +188,6 @@ pruebas unitarias nuevas. No hay recuperador automático: un PENDIENTE se recupe
 mediante una futura llamada interna a aplicar o revertir con la misma identidad.
 Conservar operaciones y tombstones CANCELADA mientras sean posibles reintentos.
 
-Hasta 4.3 no se puede verificar mediante Postman: autenticación de servicio,
-denegación de JWT humanos, códigos/rutas HTTP, consulta remota, reintentos tras
-respuesta perdida, concurrencia y reversión remotas. El núcleo podría verificarse
-antes mediante un arnés de integración Java/MySQL autorizado; no se incluye aquí.
+La matriz manual HTTP de 4.3 está en `API_INTERNA_STOCK.md`; no fue ejecutada por
+el agente. Incluye identidad de servicio, JWT humanos, idempotencia y carreras.
 Ventas, pedidos y recuperación entre servicios pertenecen a etapas posteriores.

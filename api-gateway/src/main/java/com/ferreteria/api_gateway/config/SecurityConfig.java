@@ -36,6 +36,7 @@ public class SecurityConfig {
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
                                 .authorizeExchange(exchanges -> exchanges
+                                                .pathMatchers("/internal", "/internal/**").denyAll()
                                                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                                                 // RUTAS PÚBLICAS
                                                 .pathMatchers(HttpMethod.POST, "/auth/login", "/auth/register/cliente")
@@ -137,6 +138,8 @@ public class SecurityConfig {
                 cors.setMaxAge(600L);
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/internal", new CorsConfiguration());
+                source.registerCorsConfiguration("/internal/**", new CorsConfiguration());
                 source.registerCorsConfiguration("/**", cors);
                 return source;
         }

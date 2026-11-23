@@ -1,5 +1,10 @@
 # Registro durable de checkout — Etapa 4.6B.3A
 
+Actualización: tarifa V1 aprobada e implementada como regla pura; ver
+[POLITICA_DESPACHO_V1.md](POLITICA_DESPACHO_V1.md). Continúa faltando clasificación
+confiable previa al registro. Las referencias siguientes a tarifa no aprobada
+describen el estado histórico de 4.6B.3A.
+
 ## API interna
 
 `SolicitudPedidoService.registrarConCheckout(compradorId, claveIdempotencia, items, entrada)`

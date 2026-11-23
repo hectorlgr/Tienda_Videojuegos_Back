@@ -9,7 +9,8 @@ import java.util.Objects;
  * Una implementación debe acreditar composición de TODOS los productos, aceptación
  * de la versión de condiciones y aplicabilidad de la política a la entrega.
  * Solo lógica/configuración local confiable; sin HTTP ni precios del frontend.
- * No se instala una implementación hasta disponer de una política aprobada.
+ * DespachoFijoV1 implementa la tarifa aprobada; no se instala un preparador hasta
+ * disponer también de clasificación confiable de Catálogo previa al registro.
  */
 public interface PoliticaCheckout {
     Preparacion preparar(ContratoStock.Solicitud solicitud, DatosCheckoutSolicitud.Entrada entrada);

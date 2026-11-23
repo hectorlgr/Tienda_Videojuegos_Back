@@ -142,11 +142,19 @@ public class MaterializacionPedidoService {
 
     private static Pedido preparar(SolicitudPedido s, ContratoStock.Snapshot snapshot) {
         var checkout = s.getCheckout();
-        boolean fisico = snapshot.items().stream().anyMatch(d -> d.formato() != ContratoStock.Formato.DIGITAL);
-        boolean digital = snapshot.items().stream().anyMatch(d -> d.formato() == ContratoStock.Formato.DIGITAL);
-        long despacho = checkout.contextoServidor().costoDespacho();
+        var composicion = DespachoFijoV1.clasificar(snapshot);
+        boolean fisico = composicion != PoliticaCheckout.Composicion.DIGITAL;
+        boolean digital = composicion != PoliticaCheckout.Composicion.FISICA;
+        var contexto = checkout.contextoServidor();
         if (fisico && checkout.entrada().entrega() == null) fallo(ENTREGA_FISICA_AUSENTE);
-        if (!fisico && despacho != 0) fallo(DESPACHO_DIGITAL_INVALIDO);
+        if (!fisico && contexto.costoDespacho() != 0) fallo(DESPACHO_DIGITAL_INVALIDO);
+        // Aplicar la versión congelada, nunca una tarifa "actual" sobre un checkout
+        // histórico. Una versión desconocida o costo contradictorio no se corrigen.
+        if (!DespachoFijoV1.POLITICA.equals(contexto.politicaDespacho())
+                || contexto.versionPoliticaDespacho() != DespachoFijoV1.VERSION
+                || contexto.versionContratoComercial() != 1) fallo(CONTEXTO_DESPACHO_INVALIDO);
+        long despacho = DespachoFijoV1.costo(composicion);
+        if (contexto.costoDespacho() != despacho) fallo(CONTEXTO_DESPACHO_INVALIDO);
         long total;
         try {
             total = Math.addExact(snapshot.totalProductos(), despacho);

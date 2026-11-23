@@ -1,5 +1,9 @@
 # Materialización local — Etapa 4.6B.2
 
+Actualización de despacho: [POLITICA_DESPACHO_V1.md](POLITICA_DESPACHO_V1.md)
+define la tarifa aprobada 0/3990 por pedido. La materialización verifica versión
+y correspondencia del costo congelado con el snapshot, sin actualizar el checkout.
+
 Actualización 4.6B.3A: registro/hash/recuperación completa de checkout implementados
 en [REGISTRO_CHECKOUT.md](REGISTRO_CHECKOUT.md). La política backend autorizada
 sigue pendiente; el registro nuevo la exige antes de insertar.

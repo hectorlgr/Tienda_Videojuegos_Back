@@ -1,11 +1,13 @@
 package com.ferreteria.venta_service.model;
 
 import com.ferreteria.venta_service.stock.ContratoStock;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /** Valores JSON inmutables de persistencia; no son endpoints ni políticas de precios. */
 public final class DatosCheckoutSolicitud {
     private DatosCheckoutSolicitud() {}
 
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Entrega(String destinatario, String telefono, String direccion,
             String region, String comuna, String referencia) {
         public Entrega {
@@ -25,6 +27,7 @@ public final class DatosCheckoutSolicitud {
         }
     }
 
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Entrada(Entrega entrega, Long limiteTotalClp, Aceptacion aceptacion) {
         public Entrada {
             exigir(limiteTotalClp != null && limiteTotalClp > 0 && aceptacion != null);

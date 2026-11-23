@@ -5,6 +5,9 @@ import com.ferreteria.venta_service.exception.ResourceNotFoundException;
 import com.ferreteria.venta_service.exception.SolicitudPedidoConflictException;
 import com.ferreteria.venta_service.model.EstadoSolicitudPedido;
 import com.ferreteria.venta_service.model.SolicitudPedido;
+import com.ferreteria.venta_service.model.DatosCheckoutSolicitud;
+import com.ferreteria.venta_service.exception.PreparacionCheckoutException;
+import org.springframework.beans.factory.ObjectProvider;
 import com.ferreteria.venta_service.repository.SolicitudPedidoRepository;
 import com.ferreteria.venta_service.stock.ContratoStock;
 import java.nio.charset.StandardCharsets;
@@ -31,9 +34,12 @@ public class SolicitudPedidoService {
     private final SolicitudPedidoRepository repository;
     private final TransactionTemplate escritura;
     private final TransactionTemplate lectura;
+    private final ObjectProvider<PoliticaCheckout> politica;
 
-    public SolicitudPedidoService(SolicitudPedidoRepository repository, PlatformTransactionManager manager) {
+    public SolicitudPedidoService(SolicitudPedidoRepository repository, PlatformTransactionManager manager,
+            ObjectProvider<PoliticaCheckout> politica) {
         this.repository = repository;
+        this.politica = politica;
         escritura = new TransactionTemplate(manager);
         escritura.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         lectura = new TransactionTemplate(manager);
@@ -41,6 +47,59 @@ public class SolicitudPedidoService {
         lectura.setReadOnly(true);
     }
 
+    /**
+     * Registro completo. El llamador aporta identidad autenticada y entrada, nunca
+     * contexto del servidor. La preparación local se ejecuta antes de la transacción.
+     */
+    public SolicitudPedidoInterna registrarConCheckout(Long compradorId, String claveIdempotencia,
+            List<ContratoStock.Item> items, DatosCheckoutSolicitud.Entrada entrada) {
+        validarComprador(compradorId);
+        UUID clave = uuid(claveIdempotencia);
+        Objects.requireNonNull(entrada, "Entrada comercial requerida");
+        var validada = new ContratoStock.Solicitud(1, items);
+        var canonica = new ContratoStock.Solicitud(1, validada.items().stream()
+                .sorted(Comparator.comparing(ContratoStock.Item::productoId)).toList());
+        String hashStock = hash(canonica);
+        String hashCheckout = HashCheckout.calcular(canonica, entrada);
+        var previa = buscar(compradorId, clave.toString());
+        if (previa.isPresent()) return comprobarCheckout(previa.get(), canonica, hashStock, entrada, hashCheckout);
+        DatosCheckoutSolicitud.Checkout checkout;
+        try {
+            PoliticaCheckout proveedor = politica.getIfAvailable();
+            if (proveedor == null) throw new PreparacionCheckoutException(
+                    PreparacionCheckoutException.Codigo.POLITICA_NO_CONFIGURADA);
+            var preparada = Objects.requireNonNull(proveedor.preparar(canonica, entrada));
+            if (preparada.composicion() != PoliticaCheckout.Composicion.DIGITAL && entrada.entrega() == null) {
+                throw new PreparacionCheckoutException(PreparacionCheckoutException.Codigo.ENTREGA_REQUERIDA);
+            }
+            if (preparada.contexto().costoDespacho() > entrada.limiteTotalClp()) {
+                throw new PreparacionCheckoutException(PreparacionCheckoutException.Codigo.DESPACHO_SUPERA_LIMITE);
+            }
+            checkout = new DatosCheckoutSolicitud.Checkout(1, entrada, preparada.contexto());
+        } catch (PreparacionCheckoutException ex) {
+            // Una inserción concurrente puede haber ganado mientras se preparaba.
+            var ganadora = buscar(compradorId, clave.toString());
+            if (ganadora.isPresent()) return comprobarCheckout(ganadora.get(), canonica, hashStock, entrada, hashCheckout);
+            throw ex;
+        }
+        try {
+            return escritura.execute(status -> {
+                var existente = repository.findByCompradorIdAndClaveIdempotencia(compradorId, clave.toString());
+                if (existente.isPresent()) return comprobarCheckout(SolicitudPedidoInterna.from(existente.get()),
+                        canonica, hashStock, entrada, hashCheckout);
+                var nueva = new SolicitudPedido(compradorId, clave, canonica, hashStock,
+                        UUID.randomUUID(), ahora(), checkout, hashCheckout);
+                return SolicitudPedidoInterna.from(repository.saveAndFlush(nueva));
+            });
+        } catch (DataIntegrityViolationException ex) {
+            var ganadora = buscar(compradorId, clave.toString()); // Nueva TX, después de rollback.
+            if (ganadora.isEmpty()) throw ex;
+            return comprobarCheckout(ganadora.get(), canonica, hashStock, entrada, hashCheckout);
+        }
+    }
+
+    /** Registro técnico heredado, sin autorización de descuento; usar registrarConCheckout. */
+    @Deprecated
     public SolicitudPedidoInterna registrar(Long compradorId, String claveIdempotencia,
             List<ContratoStock.Item> items) {
         validarComprador(compradorId);
@@ -128,10 +187,28 @@ public class SolicitudPedidoService {
 
     private SolicitudPedidoInterna comprobarContenido(SolicitudPedidoInterna existente,
             ContratoStock.Solicitud solicitud, String hash) {
+        // El método antiguo no puede recuperar checkout comercial validando solo productos.
+        if (existente.checkout() != null) {
+            throw new SolicitudPedidoConflictException(SolicitudPedidoConflictException.Codigo.CONTENIDO_DISTINTO);
+        }
         if (!hash.equals(existente.hashSolicitud()) || !solicitud.equals(existente.solicitud())) {
             throw new SolicitudPedidoConflictException(SolicitudPedidoConflictException.Codigo.CONTENIDO_DISTINTO);
         }
         return existente;
+    }
+
+    private SolicitudPedidoInterna comprobarCheckout(SolicitudPedidoInterna existente,
+            ContratoStock.Solicitud solicitud, String hashStock,
+            DatosCheckoutSolicitud.Entrada entrada, String hashCheckout) {
+        if (existente.checkout() == null || existente.hashCheckout() == null) {
+            throw new SolicitudPedidoConflictException(
+                    SolicitudPedidoConflictException.Codigo.CHECKOUT_HISTORICO_AUSENTE);
+        }
+        if (!solicitud.equals(existente.solicitud()) || !hashStock.equals(existente.hashSolicitud())
+                || !entrada.equals(existente.checkout().entrada()) || !hashCheckout.equals(existente.hashCheckout())) {
+            throw new SolicitudPedidoConflictException(SolicitudPedidoConflictException.Codigo.CONTENIDO_DISTINTO);
+        }
+        return existente; // Incluye contexto, UUID, estado y resultado originales, sin UPDATE.
     }
 
     private static String hash(ContratoStock.Solicitud solicitud) {

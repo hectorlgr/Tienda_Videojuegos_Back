@@ -1,5 +1,10 @@
 # Solicitudes durables — Etapa 4.6B.1
 
+Actualización 4.6B.3A: `registrarConCheckout`, canonicalización/hash comercial y
+recuperación completa implementados. Ver [REGISTRO_CHECKOUT.md](REGISTRO_CHECKOUT.md)
+para el contrato vigente y el rechazo explícito cuando falta política backend.
+Las menciones posteriores al registro/hash pendientes son historia de 4.6B.1.
+
 Actualización 4.6B.2: materialización y resolución exitosa disponibles en
 [MATERIALIZACION_PEDIDO.md](MATERIALIZACION_PEDIDO.md). Las referencias siguientes
 al futuro materializador describen la situación original de 4.6B.1.

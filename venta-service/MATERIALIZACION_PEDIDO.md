@@ -1,5 +1,9 @@
 # Materialización local — Etapa 4.6B.2
 
+Actualización 4.6B.3A: registro/hash/recuperación completa de checkout implementados
+en [REGISTRO_CHECKOUT.md](REGISTRO_CHECKOUT.md). La política backend autorizada
+sigue pendiente; el registro nuevo la exige antes de insertar.
+
 `MaterializacionPedidoService.materializar(Long solicitudId, UUID token, ResultadoStock stock)`
 es exclusivamente interno. Devuelve un record `Resultado(CREADO|RECUPERADO, pedidoId)`
 después del commit. No devuelve entidades administradas. No hay invocaciones HTTP.

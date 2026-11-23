@@ -3,6 +3,7 @@ package com.ferreteria.venta_service.model;
 import com.ferreteria.venta_service.stock.ContratoStock;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.UUID;
@@ -11,6 +12,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.ferreteria.venta_service.exception.SolicitudPedidoConflictException;
+import static com.ferreteria.venta_service.exception.SolicitudPedidoConflictException.Codigo.*;
 
 /**
  * Intención técnica previa al pedido comercial. Sin precios, entrega ni llamadas remotas.
@@ -79,7 +82,7 @@ public class SolicitudPedido {
 
     /**
      * Solo construcción del modelo, sin persistir ni generar identidades.
-     * La correspondencia hash/contenido deberá comprobarla el futuro coordinador.
+     * La correspondencia hash/contenido la prepara SolicitudPedidoService.
      */
     public SolicitudPedido(Long compradorId, UUID claveIdempotencia, ContratoStock.Solicitud solicitudCanonica,
             String hashSolicitud, UUID operacionStockId, Instant fechaCreacion) {
@@ -105,5 +108,66 @@ public class SolicitudPedido {
         this.fechaCreacion = Objects.requireNonNull(fechaCreacion).truncatedTo(ChronoUnit.MICROS);
         this.fechaActualizacion = this.fechaCreacion;
         // @Version se inicializa por Hibernate al persistir; reclamación inicialmente nula.
+    }
+
+    /** Invocar sobre una fila bloqueada dentro de una transacción corta. */
+    public void reclamar(UUID token, Instant ahora, Duration duracion) {
+        exigirAbierta();
+        if (bloqueoHasta != null && bloqueoHasta.isAfter(ahora)) {
+            throw new SolicitudPedidoConflictException(RECLAMACION_VIGENTE);
+        }
+        if (duracion == null || duracion.compareTo(Duration.ofSeconds(1)) < 0
+                || duracion.compareTo(Duration.ofMinutes(5)) > 0) {
+            throw new IllegalArgumentException("La reclamación debe durar entre 1 y 300 segundos");
+        }
+        // Un dueño anterior pudo haber comenzado trabajo antes de perder su lease.
+        if (tokenReclamacion != null) estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        tokenReclamacion = Objects.requireNonNull(token).toString();
+        actualizar(ahora);
+        bloqueoHasta = fechaActualizacion.plus(duracion).truncatedTo(ChronoUnit.MICROS);
+    }
+
+    public void renovar(UUID token, Instant ahora, Duration duracion) {
+        exigirTokenVigente(token, ahora);
+        if (duracion == null || duracion.compareTo(Duration.ofSeconds(1)) < 0
+                || duracion.compareTo(Duration.ofMinutes(5)) > 0) {
+            throw new IllegalArgumentException("La reclamación debe durar entre 1 y 300 segundos");
+        }
+        actualizar(ahora);
+        Instant nuevoVencimiento = fechaActualizacion.plus(duracion).truncatedTo(ChronoUnit.MICROS);
+        if (nuevoVencimiento.isAfter(bloqueoHasta)) bloqueoHasta = nuevoVencimiento;
+    }
+
+    public void marcarReconciliacion(UUID token, Instant ahora) {
+        exigirTokenVigente(token, ahora);
+        estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        actualizar(ahora);
+    }
+
+    public void liberar(UUID token, Instant ahora) {
+        exigirTokenVigente(token, ahora);
+        // Liberar no borra la necesidad de reconciliación ni implica resolver.
+        tokenReclamacion = null;
+        bloqueoHasta = null;
+        actualizar(ahora);
+    }
+
+    private void exigirAbierta() {
+        if (estado == EstadoSolicitudPedido.RESUELTA) {
+            throw new SolicitudPedidoConflictException(SOLICITUD_RESUELTA);
+        }
+    }
+
+    private void exigirTokenVigente(UUID token, Instant ahora) {
+        exigirAbierta();
+        if (token == null || !token.toString().equals(tokenReclamacion)
+                || bloqueoHasta == null || !bloqueoHasta.isAfter(ahora)) {
+            throw new SolicitudPedidoConflictException(TOKEN_NO_VIGENTE);
+        }
+    }
+
+    private void actualizar(Instant ahora) {
+        Instant micros = Objects.requireNonNull(ahora).truncatedTo(ChronoUnit.MICROS);
+        if (micros.isAfter(fechaActualizacion)) fechaActualizacion = micros;
     }
 }

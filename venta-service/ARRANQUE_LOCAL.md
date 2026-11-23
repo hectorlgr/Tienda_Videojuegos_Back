@@ -1,9 +1,11 @@
-# Ventas — configuración local y esquema manual (Etapa 4.6A.1)
+# Ventas — configuración local y esquema manual (Etapa 4.6A.2)
 
-**Instalación existente:** antes del próximo arranque de esta versión, revisar y
-ejecutar manualmente una sola vez `sql/03_crear_solicitudes_pedido.sql` en MySQL 8.4.
-No repetir 01/02 si ya están aplicados. Hibernate conserva `ddl-auto=validate`:
-la ausencia de la nueva tabla impedirá el arranque. El agente no ejecutó SQL.
+**Instalación existente:** el usuario confirmó SQL 03 aplicado y validado con
+Hibernate. No repetir 01/02/03 si ya están aplicados. Se conserva `ddl-auto=validate`.
+La etapa 4.6A.2 no añade DDL. El agente no ejecutó SQL.
+El registro y la reclamación internos están documentados en
+[SOLICITUDES_PEDIDO.md](SOLICITUDES_PEDIDO.md); necesitan el GRANT mínimo pendiente
+de la sección 1.2 antes de probar escrituras.
 Ver la sección **1.2** para la finalidad, restricciones y consultas de verificación.
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
@@ -211,8 +213,9 @@ DDL, detenerse e inspeccionar: MySQL hace commit implícito.
 `SolicitudPedido` conserva comprador autenticado, clave idempotente, solicitud
 canónica versión 1, hash SHA-256 y UUID estable de stock antes de obtener precios.
 No es un `Pedido`: no tiene importes, entrega ni snapshots comerciales, y no
-aparece en las consultas actuales de pedidos. No se han creado repositorios,
-coordinador, endpoints, tareas programadas ni llamadas remotas para esta entidad.
+aparece en las consultas actuales de pedidos. En 4.6A.2 se añaden repositorio y
+servicio de persistencia/reclamación; no hay endpoints, tareas programadas ni
+llamadas remotas para esta entidad.
 
 #### Estados y reclamación
 
@@ -231,9 +234,9 @@ El vencimiento puede quedar en el pasado: el CHECK no impide recuperar trabajo.
 Los índices `(estado, fecha_actualizacion, id)` y `(estado, bloqueo_hasta, id)`
 permiten buscar pendientes y reclamaciones vencidas.
 
-El futuro coordinador deberá reclamar con una transacción local corta, validar
-token/vigencia y versión al guardar resultados, y conservar el UUID remoto al
-recuperar. `@Version` no sustituye esas validaciones: las actualizaciones SQL
+El servicio interno reclama con una transacción local corta, valida token/vigencia
+y conserva el UUID remoto al recuperar. `@Version` no sustituye esas validaciones:
+las actualizaciones SQL
 directas/bulk deberán comprobar e incrementar la versión explícitamente.
 Un arrendamiento vencido no detiene a un trabajador pausado; la idempotencia
 remota por el mismo UUID sigue siendo necesaria. Ningún CHECK compara con NOW().
@@ -242,14 +245,15 @@ reconciliación; un timeout no deberá marcar la intención como fallo definitiv
 
 #### Inmutabilidad, canonicalización y correspondencia
 
-La entidad solo expone getters y un constructor inicial, sin métodos de
-registro/reclamación/resolución. Comprador, claves, versión del contrato,
+La entidad expone getters, constructor inicial y transiciones protegidas de
+reclamación, renovación, reconciliación y liberación; no permite resolver.
+Comprador, claves, versión del contrato,
 solicitud, hash y creación están marcados `updatable=false`.
 `ContratoStock.Solicitud` es un record con lista inmutable: valida versión 1,
 1..100 ítems positivos y sin duplicados. **No canonicaliza ni calcula el hash.**
 El constructor de la entidad exige productos en orden ascendente por ID, UUID
-tipados y hash hexadecimal en minúsculas de longitud 64. El coordinador futuro
-debe producir la representación canónica y comprobar hash/contenido.
+tipados y hash hexadecimal en minúsculas de longitud 64. SolicitudPedidoService
+ordena los productos, calcula el hash y compara hash y contenido ante repeticiones.
 No obtener comprador de JSON ni de headers arbitrarios: solo del JWT validado.
 
 El constructor no persiste, no genera UUID ni calcula precios. Inicia PENDIENTE,
@@ -280,7 +284,7 @@ La unicidad `(comprador_id, clave_idempotencia)` reserva la clave por comprador;
 copiarse posteriormente al pedido materializado, sin regenerarlo.
 SQL valida estructura JSON, pero no orden por ID, ausencia de IDs repetidos,
 correspondencia matemática del hash ni inmutabilidad histórica. Estas garantías
-dependen del modelo y del futuro coordinador; `updatable=false` no impide SQL manual.
+dependen del modelo y del servicio interno; `updatable=false` no impide SQL manual.
 La futura creación de pedidos deberá comprobar coherencia entre las dos tablas.
 
 #### Consultas Workbench (solo lectura, para después de ejecutar 03)
@@ -333,17 +337,29 @@ debe ejecutarse conectado como checkpoint_ventas_app.
 #### Permisos posteriores y límites
 
 El SELECT existente sobre `checkpoint_store_ventas.*` cubre esta tabla y permite
-validar el mapping. Antes de habilitar el futuro registro/coordinador, una cuenta
+validar el mapping. Antes de probar el registro/reclamación internos, una cuenta
 administradora deberá autorizar **INSERT y UPDATE únicamente sobre
 checkpoint_store_ventas.solicitudes_pedido** para la cuenta local
 `checkpoint_ventas_app` correspondiente. No se requieren DELETE ni permisos DDL.
-No se incluye ni se ejecuta GRANT en SQL 03; no ampliar permisos en esta etapa.
+No se incluye GRANT en SQL 03 ni se ejecutó durante esta tarea.
+Preparado para ejecución manual posterior, tras confirmar que la cuenta real
+es `checkpoint_ventas_app`@`localhost`:
+
+```sql
+GRANT INSERT, UPDATE ON checkpoint_store_ventas.solicitudes_pedido
+TO 'checkpoint_ventas_app'@'localhost';
+```
+
+No recrear la cuenta, cambiar contraseña ni ampliar permisos sobre otras tablas.
+Si el host de la cuenta instalada es diferente, verificarlo con el administrador
+antes de adaptar el GRANT; no crear una segunda cuenta por accidente.
 
 La compilación e inspección no validan MySQL ni la serialización real de JSON.
 Después de aplicar 03 se podrá comprobar arranque Hibernate con validate y que
-la tabla sigue vacía. Todavía no se pueden probar registro por HTTP, deduplicación
-concurrente, recuperación, reclamación, resolución ni coordinación con Catálogo:
-no existen esos flujos. La versión 1 de intención solo conserva productos;
+la tabla sigue vacía si no se invoca el servicio. Registro, deduplicación y leases
+podrán probarse con un llamador Java autorizado después del GRANT; todavía no por
+HTTP. Resolución y coordinación con Catálogo no están implementadas.
+La versión 1 de intención solo conserva productos;
 entrega y aceptación comercial requerirán un diseño posterior antes del checkout.
 
 ## 2. Configuración y arranque aislado

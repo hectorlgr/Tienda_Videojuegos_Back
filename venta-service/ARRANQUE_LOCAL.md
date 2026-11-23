@@ -6,7 +6,8 @@ Para el entorno completo, usar por doble clic `../iniciar_checkpoint_local.bat`:
 inicia Eureka, Identidad, Catálogo, Ventas y Gateway. Solicita la contraseña
 `checkpoint_app` y, por separado, `checkpoint_ventas_app`, ambas ocultas.
 Genera el JWT_SECRET humano compartido y prepara STOCK_SERVICE_JWT_SECRET
-solo para Catálogo/Ventas; Ventas todavía no emite JWT de servicio ni llama stock.
+solo para Catálogo/Ventas. Desde Etapa 4.5 Ventas contiene un cliente interno que
+emite JWT al invocarse; aún no hay flujo ni endpoint de pedidos que lo invoque.
 Mantiene `ddl-auto=validate` y los permisos SELECT actuales. No ejecutar
 simultáneamente ese lanzador y las consolas aisladas de este documento.
 Ver [arranque Windows](../ARRANQUE_LOCAL_WINDOWS.md) para disponibilidad,
@@ -222,6 +223,8 @@ $dbSecret = Read-Host 'Contraseña MySQL de Ventas' -AsSecureString
 $env:VENTAS_DB_PASSWORD = (New-Object System.Net.NetworkCredential('', $dbSecret)).Password
 $jwtSecret = Read-Host 'JWT_SECRET de la instalación existente' -AsSecureString
 $env:JWT_SECRET = (New-Object System.Net.NetworkCredential('', $jwtSecret)).Password
+$stockSecret = Read-Host 'STOCK_SERVICE_JWT_SECRET compartido con Catalogo (distinto del humano)' -AsSecureString
+$env:STOCK_SERVICE_JWT_SECRET = (New-Object System.Net.NetworkCredential('', $stockSecret)).Password
 $env:EUREKA_URL = 'http://127.0.0.1:8761/eureka/'
 $env:SPRING_JPA_HIBERNATE_DDL_AUTO = 'validate'
 $env:SPRING_SQL_INIT_MODE = 'never'
@@ -231,6 +234,8 @@ try {
 } finally {
     Remove-Item Env:VENTAS_DB_PASSWORD -ErrorAction SilentlyContinue
     Remove-Item Env:JWT_SECRET -ErrorAction SilentlyContinue
+    Remove-Item Env:STOCK_SERVICE_JWT_SECRET -ErrorAction SilentlyContinue
+    $stockSecret.Dispose()
     $dbSecret = $null
     $jwtSecret = $null
 }
@@ -241,7 +246,10 @@ sin `createDatabaseIfNotExist`. Requiere `VENTAS_DB_USERNAME`,
 `VENTAS_DB_PASSWORD` y `JWT_SECRET`; `EUREKA_URL` tiene default local.
 JWT_SECRET debe ser exactamente el mismo texto que usan Identidad y Gateway,
 de al menos 32 bytes UTF-8 (no se decodifica Base64); solo se acepta HS256.
-Sin secreto, o con uno demasiado corto, el arranque debe fallar.
+Desde 4.5 también requiere STOCK_SERVICE_JWT_SECRET del entorno: al menos 32 bytes
+UTF-8, diferente del secreto humano e idéntico al de Catálogo. Sin un secreto válido,
+el arranque falla. El lanzador de cinco servicios ya lo proporciona automáticamente.
+Detalles del cliente y recuperación: [CLIENTE_STOCK.md](CLIENTE_STOCK.md).
 
 Se retiraron los starters de Liquibase de ejecución y pruebas del POM de Ventas.
 El changelog histórico queda como archivo inerte: no hay dependencia que lo

@@ -1,4 +1,10 @@
-# Ventas — configuración local y esquema manual (actualizado en etapa 3.2)
+# Ventas — configuración local y esquema manual (Etapa 4.6A.1)
+
+**Instalación existente:** antes del próximo arranque de esta versión, revisar y
+ejecutar manualmente una sola vez `sql/03_crear_solicitudes_pedido.sql` en MySQL 8.4.
+No repetir 01/02 si ya están aplicados. Hibernate conserva `ddl-auto=validate`:
+la ausencia de la nueva tabla impedirá el arranque. El agente no ejecutó SQL.
+Ver la sección **1.2** para la finalidad, restricciones y consultas de verificación.
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
 repositorio. Para el recorrido por Gateway también se necesitan Eureka y Gateway.
@@ -21,14 +27,15 @@ La etapa 3.1 incorpora únicamente el mapping persistente de pedidos, sin API,
 checkout, pagos ni integración con Identidad/Catálogo.
 La etapa 3.2 añade exclusivamente los cuatro GET documentados en
 [CONSULTAS_PEDIDOS.md](CONSULTAS_PEDIDOS.md), con permisos en Ventas y Gateway.
-No requiere SQL adicional ni ampliar los permisos de lectura de MySQL.
+La etapa 3.2 no requirió SQL adicional; 4.6A.1 sí añade SQL 03.
+Para esta etapa de mapping se mantienen los permisos de lectura de MySQL.
 No necesita arrancar Usuarios, Inventario, Promociones, Pedidos ni Despachos
 para consultar la colección vacía.
 
 ## 1. Preparar MySQL manualmente
 
-Esta preparación corresponde a la etapa 1. Si ya está validada, no repetirla:
-aplicar únicamente el paso aditivo de la sección 1.1 para la etapa 3.1.
+Esta preparación corresponde a la etapa 1. Si ya está validada, no repetirla.
+Aplicar solo los scripts aditivos pendientes: 02 (sección 1.1) y 03 (sección 1.2).
 
 Con una cuenta administradora, revisar y ejecutar una sola vez:
 
@@ -192,6 +199,152 @@ SHOW GRANTS con la cuenta de aplicación debe incluir SELECT sobre la base.
 No hace falta Postman para este paso: no se añadió ninguna API. No repetir
 compras ni intentar insertar datos para validar reglas todavía no implementadas.
 Compilar e inspeccionar mapping/SQL no certifica ejecución real en MySQL.
+
+### 1.2 Etapa 4.6A.1 — intención técnica durable
+
+Script completo: [`sql/03_crear_solicitudes_pedido.sql`](sql/03_crear_solicitudes_pedido.sql).
+Crear únicamente `checkpoint_store_ventas.solicitudes_pedido`, manualmente con
+una cuenta administradora y los servicios detenidos. Sin semillas, cambios en
+tablas existentes, permisos ni FK externas. Ante una tabla existente o error de
+DDL, detenerse e inspeccionar: MySQL hace commit implícito.
+
+`SolicitudPedido` conserva comprador autenticado, clave idempotente, solicitud
+canónica versión 1, hash SHA-256 y UUID estable de stock antes de obtener precios.
+No es un `Pedido`: no tiene importes, entrega ni snapshots comerciales, y no
+aparece en las consultas actuales de pedidos. No se han creado repositorios,
+coordinador, endpoints, tareas programadas ni llamadas remotas para esta entidad.
+
+#### Estados y reclamación
+
+- `PENDIENTE`: trabajo registrado y todavía sin resolver.
+- `RECONCILIACION_PENDIENTE`: requiere verificar el resultado remoto original;
+  no significa rechazo de compra ni ausencia de descuento.
+- `RESUELTA`: coordinación terminada. No equivale por sí sola a compra exitosa,
+  pedido confirmado o stock aplicado. El criterio y resultado durable de
+  resolución deberán definirse al implementar el coordinador.
+
+Una reclamación se representa mediante `token_reclamacion` y `bloqueo_hasta`,
+ambos nulos inicialmente o ambos informados. Puede existir para PENDIENTE o
+RECONCILIACION_PENDIENTE; RESUELTA exige que ambos vuelvan a null.
+No se duplica esa información con un estado RECLAMADA.
+El vencimiento puede quedar en el pasado: el CHECK no impide recuperar trabajo.
+Los índices `(estado, fecha_actualizacion, id)` y `(estado, bloqueo_hasta, id)`
+permiten buscar pendientes y reclamaciones vencidas.
+
+El futuro coordinador deberá reclamar con una transacción local corta, validar
+token/vigencia y versión al guardar resultados, y conservar el UUID remoto al
+recuperar. `@Version` no sustituye esas validaciones: las actualizaciones SQL
+directas/bulk deberán comprobar e incrementar la versión explícitamente.
+Un arrendamiento vencido no detiene a un trabajador pausado; la idempotencia
+remota por el mismo UUID sigue siendo necesaria. Ningún CHECK compara con NOW().
+Antes de un futuro envío remoto deberá persistirse que puede necesitar
+reconciliación; un timeout no deberá marcar la intención como fallo definitivo.
+
+#### Inmutabilidad, canonicalización y correspondencia
+
+La entidad solo expone getters y un constructor inicial, sin métodos de
+registro/reclamación/resolución. Comprador, claves, versión del contrato,
+solicitud, hash y creación están marcados `updatable=false`.
+`ContratoStock.Solicitud` es un record con lista inmutable: valida versión 1,
+1..100 ítems positivos y sin duplicados. **No canonicaliza ni calcula el hash.**
+El constructor de la entidad exige productos en orden ascendente por ID, UUID
+tipados y hash hexadecimal en minúsculas de longitud 64. El coordinador futuro
+debe producir la representación canónica y comprobar hash/contenido.
+No obtener comprador de JSON ni de headers arbitrarios: solo del JWT validado.
+
+El constructor no persiste, no genera UUID ni calcula precios. Inicia PENDIENTE,
+sin reclamación, y trunca el Instant recibido a microsegundos para asignar
+exactamente el mismo instante a creación y actualización.
+
+| Java / JPA | SQL 03 |
+|---|---|
+| id Long / IDENTITY | BIGINT AUTO_INCREMENT, PK |
+| compradorId Long | BIGINT NOT NULL, CHECK positivo |
+| UUID de entrada normalizado a String | VARCHAR(36) ascii_bin, CHECK UUID minúscula |
+| versionContrato int | INT NOT NULL, CHECK = 1 |
+| ContratoStock.Solicitud / JdbcTypeCode(JSON) | JSON NOT NULL, JSON_SCHEMA_VALID |
+| hash String | VARCHAR(64) ascii_bin, CHECK SHA-256 hexadecimal |
+| estado EnumType.STRING + JdbcTypeCode(VARCHAR) | VARCHAR(30) ascii_bin, CHECK de estados |
+| version Long / @Version | BIGINT NOT NULL, CHECK >= 0 |
+| tokenReclamacion String | VARCHAR(36) ascii_bin nullable |
+| Instant / TIMESTAMP_UTC | DATETIME(6), bloqueo nullable; creación/actualización obligatorias |
+
+Hibernate inicializa la versión optimista al persistir; el constructor la deja
+sin asignar. No hay defaults SQL, callbacks temporales ni auditoría automática.
+El mapping JSON reutiliza los records y el soporte Hibernate/Jackson disponibles,
+sin dependencias nuevas. El JSON admite exactamente versión, IDs y cantidades;
+su versión siempre coincide con la columna porque ambas solo admiten 1.
+
+La unicidad `(comprador_id, clave_idempotencia)` reserva la clave por comprador;
+`operacion_stock_id` es globalmente único en esta tabla. El mismo UUID deberá
+copiarse posteriormente al pedido materializado, sin regenerarlo.
+SQL valida estructura JSON, pero no orden por ID, ausencia de IDs repetidos,
+correspondencia matemática del hash ni inmutabilidad histórica. Estas garantías
+dependen del modelo y del futuro coordinador; `updatable=false` no impide SQL manual.
+La futura creación de pedidos deberá comprobar coherencia entre las dos tablas.
+
+#### Consultas Workbench (solo lectura, para después de ejecutar 03)
+
+```sql
+SHOW CREATE TABLE checkpoint_store_ventas.solicitudes_pedido;
+SHOW INDEX FROM checkpoint_store_ventas.solicitudes_pedido;
+
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT,
+       EXTRA, DATETIME_PRECISION, CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND TABLE_NAME = 'solicitudes_pedido'
+ORDER BY ORDINAL_POSITION;
+
+SELECT tc.CONSTRAINT_NAME, tc.ENFORCED, cc.CHECK_CLAUSE
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.CHECK_CONSTRAINTS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND tc.TABLE_NAME = 'solicitudes_pedido'
+  AND tc.CONSTRAINT_TYPE = 'CHECK'
+ORDER BY tc.CONSTRAINT_NAME;
+
+SELECT COUNT(*) AS solicitudes
+FROM checkpoint_store_ventas.solicitudes_pedido;
+
+SELECT id, comprador_id, clave_idempotencia, version_contrato,
+       hash_solicitud, operacion_stock_id, estado, version,
+       token_reclamacion, bloqueo_hasta, fecha_creacion, fecha_actualizacion,
+       JSON_PRETTY(solicitud) AS solicitud
+FROM checkpoint_store_ventas.solicitudes_pedido
+ORDER BY id;
+
+SELECT id, estado, operacion_stock_id, bloqueo_hasta
+FROM checkpoint_store_ventas.solicitudes_pedido
+WHERE estado IN ('PENDIENTE', 'RECONCILIACION_PENDIENTE')
+  AND (bloqueo_hasta IS NULL OR bloqueo_hasta <= UTC_TIMESTAMP(6))
+ORDER BY estado, bloqueo_hasta, id;
+
+SHOW GRANTS FOR CURRENT_USER();
+```
+
+Esperado al instalar: tabla vacía, PK, dos UNIQUE, dos índices secundarios,
+CHECK ENFORCED y 13 columnas. La consulta de candidatos no reclama filas ni
+garantiza exclusividad. Para revisar permisos de la aplicación, SHOW GRANTS
+debe ejecutarse conectado como checkpoint_ventas_app.
+
+#### Permisos posteriores y límites
+
+El SELECT existente sobre `checkpoint_store_ventas.*` cubre esta tabla y permite
+validar el mapping. Antes de habilitar el futuro registro/coordinador, una cuenta
+administradora deberá autorizar **INSERT y UPDATE únicamente sobre
+checkpoint_store_ventas.solicitudes_pedido** para la cuenta local
+`checkpoint_ventas_app` correspondiente. No se requieren DELETE ni permisos DDL.
+No se incluye ni se ejecuta GRANT en SQL 03; no ampliar permisos en esta etapa.
+
+La compilación e inspección no validan MySQL ni la serialización real de JSON.
+Después de aplicar 03 se podrá comprobar arranque Hibernate con validate y que
+la tabla sigue vacía. Todavía no se pueden probar registro por HTTP, deduplicación
+concurrente, recuperación, reclamación, resolución ni coordinación con Catálogo:
+no existen esos flujos. La versión 1 de intención solo conserva productos;
+entrega y aceptación comercial requerirán un diseño posterior antes del checkout.
 
 ## 2. Configuración y arranque aislado
 

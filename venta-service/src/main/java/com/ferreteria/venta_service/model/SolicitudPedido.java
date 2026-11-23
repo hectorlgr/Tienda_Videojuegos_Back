@@ -16,7 +16,7 @@ import com.ferreteria.venta_service.exception.SolicitudPedidoConflictException;
 import static com.ferreteria.venta_service.exception.SolicitudPedidoConflictException.Codigo.*;
 
 /**
- * Intención técnica previa al pedido comercial. Sin precios, entrega ni llamadas remotas.
+ * Intención técnica previa al pedido comercial. Sin snapshots de precios ni llamadas remotas.
  * El futuro coordinador aporta comprador autenticado, solicitud canónica, hash y UUID estable.
  */
 @Entity
@@ -53,6 +53,20 @@ public class SolicitudPedido {
     @Column(name = "hash_solicitud", nullable = false, length = 64, updatable = false)
     private String hashSolicitud;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON", updatable = false)
+    private DatosCheckoutSolicitud.Checkout checkout;
+
+    @Column(name = "hash_checkout", length = 64, updatable = false)
+    private String hashCheckout;
+
+    @Column(name = "codigo_compensacion", length = 64)
+    private String codigoCompensacion;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private DatosCheckoutSolicitud.Resultado resultado;
+
     @Column(name = "operacion_stock_id", nullable = false, length = 36, updatable = false)
     private String operacionStockId;
 
@@ -86,6 +100,18 @@ public class SolicitudPedido {
      */
     public SolicitudPedido(Long compradorId, UUID claveIdempotencia, ContratoStock.Solicitud solicitudCanonica,
             String hashSolicitud, UUID operacionStockId, Instant fechaCreacion) {
+        this(compradorId, claveIdempotencia, solicitudCanonica, hashSolicitud,
+                operacionStockId, fechaCreacion, null, null);
+    }
+
+    /** El checkout solo se recibe al crear; nunca se completa silenciosamente en registros antiguos. */
+    public SolicitudPedido(Long compradorId, UUID claveIdempotencia, ContratoStock.Solicitud solicitudCanonica,
+            String hashSolicitud, UUID operacionStockId, Instant fechaCreacion,
+            DatosCheckoutSolicitud.Checkout checkout, String hashCheckout) {
+        if ((checkout == null) != (hashCheckout == null)
+                || (hashCheckout != null && !hashCheckout.matches("[0-9a-f]{64}"))) {
+            throw new IllegalArgumentException("Checkout y hash deben estar presentes juntos y ser válidos");
+        }
         if (compradorId == null || compradorId <= 0
                 || hashSolicitud == null || !hashSolicitud.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("Comprador o hash de solicitud inválido");
@@ -103,6 +129,8 @@ public class SolicitudPedido {
         this.versionContrato = solicitudCanonica.versionContrato();
         this.solicitud = solicitudCanonica;
         this.hashSolicitud = hashSolicitud;
+        this.checkout = checkout;
+        this.hashCheckout = hashCheckout;
         this.operacionStockId = Objects.requireNonNull(operacionStockId).toString();
         this.estado = EstadoSolicitudPedido.PENDIENTE;
         this.fechaCreacion = Objects.requireNonNull(fechaCreacion).truncatedTo(ChronoUnit.MICROS);
@@ -121,7 +149,9 @@ public class SolicitudPedido {
             throw new IllegalArgumentException("La reclamación debe durar entre 1 y 300 segundos");
         }
         // Un dueño anterior pudo haber comenzado trabajo antes de perder su lease.
-        if (tokenReclamacion != null) estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        if (tokenReclamacion != null && estado != EstadoSolicitudPedido.COMPENSACION_PENDIENTE) {
+            estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        }
         tokenReclamacion = Objects.requireNonNull(token).toString();
         actualizar(ahora);
         bloqueoHasta = fechaActualizacion.plus(duracion).truncatedTo(ChronoUnit.MICROS);
@@ -140,7 +170,9 @@ public class SolicitudPedido {
 
     public void marcarReconciliacion(UUID token, Instant ahora) {
         exigirTokenVigente(token, ahora);
-        estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        if (estado != EstadoSolicitudPedido.COMPENSACION_PENDIENTE) {
+            estado = EstadoSolicitudPedido.RECONCILIACION_PENDIENTE;
+        }
         actualizar(ahora);
     }
 
@@ -155,6 +187,20 @@ public class SolicitudPedido {
     private void exigirAbierta() {
         if (estado == EstadoSolicitudPedido.RESUELTA) {
             throw new SolicitudPedidoConflictException(SOLICITUD_RESUELTA);
+        }
+    }
+
+    /**
+     * Precondición obligatoria del futuro coordinador antes de autorizar un descuento.
+     * No sustituye validar entrega, política, importes y token vigente en esa transacción.
+     */
+    public void exigirCheckoutParaDescuento() {
+        exigirAbierta();
+        if (estado == EstadoSolicitudPedido.COMPENSACION_PENDIENTE || codigoCompensacion != null) {
+            throw new IllegalStateException("La decisión de compensar impide descontar o crear un pedido");
+        }
+        if (checkout == null || hashCheckout == null) {
+            throw new IllegalStateException("Solicitud histórica sin checkout: descuento no autorizado");
         }
     }
 

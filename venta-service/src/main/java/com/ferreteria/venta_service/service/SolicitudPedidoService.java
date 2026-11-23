@@ -26,7 +26,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class SolicitudPedidoService {
     private static final List<EstadoSolicitudPedido> ABIERTAS = List.of(
-            EstadoSolicitudPedido.PENDIENTE, EstadoSolicitudPedido.RECONCILIACION_PENDIENTE);
+            EstadoSolicitudPedido.PENDIENTE, EstadoSolicitudPedido.RECONCILIACION_PENDIENTE,
+            EstadoSolicitudPedido.COMPENSACION_PENDIENTE);
     private final SolicitudPedidoRepository repository;
     private final TransactionTemplate escritura;
     private final TransactionTemplate lectura;

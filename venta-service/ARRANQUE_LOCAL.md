@@ -1,8 +1,9 @@
-# Ventas — configuración local y esquema manual (Etapa 4.6A.2)
+# Ventas — configuración local y esquema manual (Etapa 4.6B.1)
 
 **Instalación existente:** el usuario confirmó SQL 03 aplicado y validado con
 Hibernate. No repetir 01/02/03 si ya están aplicados. Se conserva `ddl-auto=validate`.
-La etapa 4.6A.2 no añade DDL. El agente no ejecutó SQL.
+La etapa 4.6B.1 requiere aplicar manualmente SQL 04 antes del próximo arranque:
+ver sección 1.3. El agente no ejecutó SQL.
 El registro y la reclamación internos están documentados en
 [SOLICITUDES_PEDIDO.md](SOLICITUDES_PEDIDO.md); necesitan el GRANT mínimo pendiente
 de la sección 1.2 antes de probar escrituras.
@@ -361,6 +362,77 @@ podrán probarse con un llamador Java autorizado después del GRANT; todavía no
 HTTP. Resolución y coordinación con Catálogo no están implementadas.
 La versión 1 de intención solo conserva productos;
 entrega y aceptación comercial requerirán un diseño posterior antes del checkout.
+
+### 1.3 Etapa 4.6B.1 — checkout, compensación y resultado
+
+Script completo: [`sql/04_ampliar_solicitudes_pedido_checkout.sql`](sql/04_ampliar_solicitudes_pedido_checkout.sql).
+Ejecutar una sola vez, manualmente, con escritores detenidos y cuenta administradora.
+No repetir 01/02/03. El script solo hace ALTER sobre solicitudes_pedido.
+Se conserva `ddl-auto=validate`: sin las nuevas columnas Ventas no podrá arrancar.
+No hay cambios de permisos ni de configuración de credenciales.
+
+Antes del ALTER:
+
+```sql
+SHOW CREATE TABLE checkpoint_store_ventas.solicitudes_pedido;
+SELECT estado, COUNT(*) AS cantidad
+FROM checkpoint_store_ventas.solicitudes_pedido
+GROUP BY estado;
+SELECT id, operacion_stock_id
+FROM checkpoint_store_ventas.solicitudes_pedido
+WHERE estado = 'RESUELTA';
+```
+
+Si existen RESUELTA, detenerse: SQL 04 exige resultado terminal y no inventa uno
+para filas anteriores. La aplicación previa no tenía método de resolución.
+Si las columnas ya existen o hubo un error, inspeccionar antes de reintentar.
+DDL hace commit implícito; no confiar en un rollback de una sesión de Workbench.
+
+Después del ALTER, validar:
+
+```sql
+SHOW CREATE TABLE checkpoint_store_ventas.solicitudes_pedido;
+SHOW INDEX FROM checkpoint_store_ventas.solicitudes_pedido;
+
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND TABLE_NAME = 'solicitudes_pedido'
+ORDER BY ORDINAL_POSITION;
+
+SELECT tc.CONSTRAINT_NAME, tc.ENFORCED, cc.CHECK_CLAUSE
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.CHECK_CONSTRAINTS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.TABLE_SCHEMA = 'checkpoint_store_ventas'
+  AND tc.TABLE_NAME = 'solicitudes_pedido'
+  AND tc.CONSTRAINT_TYPE = 'CHECK'
+ORDER BY tc.CONSTRAINT_NAME;
+
+SELECT id, estado, hash_solicitud, hash_checkout, codigo_compensacion,
+       JSON_PRETTY(checkout) AS checkout,
+       JSON_PRETTY(resultado) AS resultado,
+       token_reclamacion, bloqueo_hasta
+FROM checkpoint_store_ventas.solicitudes_pedido
+ORDER BY id;
+```
+
+Esperado: 17 columnas; cuatro nuevas nullable (checkout/resultado JSON, hash y
+código VARCHAR(64)); mismos PK, dos UNIQUE y dos índices secundarios.
+CHECK del estado ampliado y nuevos CHECK ENFORCED; los de stock, fechas y leases
+siguen presentes. Filas abiertas anteriores mantienen los cuatro campos NULL.
+
+Los campos JSON se mapean mediante records inmutables y `@JdbcTypeCode(JSON)`.
+Los dos VARCHAR(64) corresponden a String; checkout/hash no actualizables por JPA.
+No cambia @Version ni la precisión DATETIME(6) de las fechas.
+El contrato completo y los hashes se describen en SOLICITUDES_PEDIDO.md.
+
+Pendiente: ejecución real del ALTER y arranque Hibernate con validate, roundtrip
+JSON e inspección de estados/constraints. No se ejecutaron en esta tarea.
+No hay flujo de checkout, descuentos, materialización o compensación que pueda
+probarse por HTTP. Los métodos de lease existentes mantienen COMPENSACION_PENDIENTE.
+El registro antiguo aún crea intenciones sin checkout, no aptas para descontar.
 
 ## 2. Configuración y arranque aislado
 

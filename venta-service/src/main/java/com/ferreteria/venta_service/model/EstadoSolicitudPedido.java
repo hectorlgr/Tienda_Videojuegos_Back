@@ -4,5 +4,6 @@ package com.ferreteria.venta_service.model;
 public enum EstadoSolicitudPedido {
     PENDIENTE,
     RECONCILIACION_PENDIENTE,
+    COMPENSACION_PENDIENTE,
     RESUELTA
 }

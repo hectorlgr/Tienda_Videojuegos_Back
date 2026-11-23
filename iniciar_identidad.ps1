@@ -17,6 +17,7 @@ function Test-Port([int] $Port) {
 }
 
 function Wait-Ready([string] $Label, [scriptblock] $Check) {
+    $script:stage = $Label
     Write-Host "Esperando $Label (hasta 180 segundos)..."
     $deadline = [DateTime]::UtcNow.AddSeconds(180)
     do {
@@ -42,6 +43,7 @@ function Test-Registration([string] $Name) {
 }
 
 function Start-ServiceWindow([string] $Module, [int] $Port) {
+    $script:stage = "$Module ($Port)"
     if ($IncluirCatalogo) {
         $env:SERVER_PORT = [string] $Port
         $env:SERVER_ADDRESS = '127.0.0.1'
@@ -61,10 +63,11 @@ function Start-ServiceWindow([string] $Module, [int] $Port) {
         -ArgumentList @('/d', '/k', $command) -WindowStyle Normal | Out-Null
 }
 
-$names = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET',
+$names = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET', 'STOCK_SERVICE_JWT_SECRET',
     'BOOTSTRAP_ADMIN_ENABLED', 'EUREKA_URL')
 if ($IncluirCatalogo) {
     $names += @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
+        'VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD',
         'RAWG_API_KEY',
         'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL',
         'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION', 'SPRING_CONFIG_IMPORT',
@@ -82,13 +85,16 @@ foreach ($name in $names) {
     $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 $password = $null
+$ventasPassword = $null
+$stockSecret = $null
+$stage = 'comprobaciones iniciales'
 $rawgSecret = $null
 $rng = $null
 $exitCode = 0
 try {
     if ($IncluirCatalogo) {
-        Write-Host 'CheckPoint Store: Eureka + Identidad + Catalogo + Gateway'
-        Write-Host 'Detener: Ctrl+C en Gateway, Catalogo, Identidad y Eureka, en ese orden.'
+        Write-Host 'CheckPoint Store: Eureka + Identidad + Catalogo + Ventas + Gateway'
+        Write-Host 'Detener: Ctrl+C en Gateway, Ventas, Catalogo, Identidad y Eureka, en ese orden.'
         # Neutralizar overrides de otra sesion; restaurarlos al terminar.
         foreach ($name in $names) {
             [Environment]::SetEnvironmentVariable($name, $null, 'Process')
@@ -105,11 +111,13 @@ try {
         Write-Host 'CheckPoint Store: Eureka + Identidad + Gateway'
         Write-Host 'Detener: Ctrl+C en Gateway, luego Identidad, luego Eureka.'
     }
+    # Ni siquiera el modo Identidad debe propagar una clave de stock heredada.
+    [Environment]::SetEnvironmentVariable('STOCK_SERVICE_JWT_SECRET', $null, 'Process')
     Write-Host 'Si cmd pide terminar el trabajo por lotes, confirmar; despues cerrar las ventanas.'
     Write-Host 'Cerrar este lanzador NO detiene los servicios. Los logs quedan en cada terminal.'
 
     $modules = @('eureka-server', 'identidad-service', 'api-gateway')
-    if ($IncluirCatalogo) { $modules += 'catalogo-service' }
+    if ($IncluirCatalogo) { $modules += @('catalogo-service', 'venta-service') }
     foreach ($module in $modules) {
         if (!(Test-Path (Join-Path $repo "$module\mvnw.cmd"))) {
             throw "No se encuentra el wrapper Maven de $module."
@@ -121,6 +129,7 @@ try {
         $configs = @('eureka-server\src\main\resources\application.properties',
             'identidad-service\src\main\resources\application.properties.example',
             'catalogo-service\src\main\resources\application.properties.example',
+            'venta-service\src\main\resources\application.properties.example',
             'api-gateway\src\main\resources\application.yml.example')
     }
     foreach ($config in $configs) {
@@ -129,7 +138,7 @@ try {
         }
     }
     $ports = @(8761, 9096, 9090)
-    if ($IncluirCatalogo) { $ports += 9091 }
+    if ($IncluirCatalogo) { $ports += @(9091, 9094) }
     foreach ($port in $ports) {
         $listening = $false
         if ($IncluirCatalogo) {
@@ -151,6 +160,18 @@ try {
     }
 
     if ($IncluirCatalogo) {
+        $ventasPassword = Read-Host 'Contrasena MySQL de checkpoint_ventas_app (entrada oculta; independiente)' -AsSecureString
+        if ($ventasPassword.Length -eq 0) {
+            throw 'La contrasena de checkpoint_ventas_app no puede estar vacia.'
+        }
+        if ($null -ne $previous['STOCK_SERVICE_JWT_SECRET']) {
+            if ([string]::IsNullOrWhiteSpace($previous['STOCK_SERVICE_JWT_SECRET']) -or
+                [Text.Encoding]::UTF8.GetByteCount($previous['STOCK_SERVICE_JWT_SECRET']) -lt 32) {
+                throw 'STOCK_SERVICE_JWT_SECRET heredado no es valido: requiere al menos 32 bytes UTF-8 y no solo espacios.'
+            }
+            $stockSecret = $previous['STOCK_SERVICE_JWT_SECRET']
+            Write-Host 'Stock: se reutilizara el secreto valido del entorno, solo para Catalogo y Ventas.'
+        }
         if ([string]::IsNullOrWhiteSpace($previous['RAWG_API_KEY'])) {
             $rawgSecret = Read-Host 'RAWG API key (entrada oculta; Enter para omitir)' -AsSecureString
         } else {
@@ -181,8 +202,17 @@ try {
     # Una sola clave por ejecucion: todos los servicios JWT heredan el mismo texto.
     $bytes = New-Object byte[] 64
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    $rng.GetBytes($bytes)
-    $env:JWT_SECRET = [Convert]::ToBase64String($bytes)
+    do {
+        $rng.GetBytes($bytes)
+        $env:JWT_SECRET = [Convert]::ToBase64String($bytes)
+    } while ($env:JWT_SECRET -ceq $stockSecret)
+    if ($IncluirCatalogo -and $null -eq $stockSecret) {
+        do {
+            $rng.GetBytes($bytes)
+            $stockSecret = [Convert]::ToBase64String($bytes)
+        } while ($stockSecret -ceq $env:JWT_SECRET)
+        Write-Host 'Stock: secreto independiente generado para Catalogo y Ventas.'
+    }
     [Array]::Clear($bytes, 0, $bytes.Length)
     $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($password)
     try {
@@ -204,6 +234,7 @@ try {
         Test-Registration 'IDENTIDAD-SERVICE'
     }
     if ($IncluirCatalogo) {
+        $env:STOCK_SERVICE_JWT_SECRET = $stockSecret
         # Ruta persistente fuera del repo. Respetar configuración externa si existe.
         $env:CATALOGO_IMAGENES_DIR = $previous['CATALOGO_IMAGENES_DIR']
         if ([string]::IsNullOrWhiteSpace($env:CATALOGO_IMAGENES_DIR)) {
@@ -242,12 +273,31 @@ try {
         }
         Wait-Ready 'Catalogo HTTP' { Test-Http 'http://127.0.0.1:9091/api/productos/v3/api-docs' }
         Wait-Ready 'registro de Catalogo en Eureka' { Test-Registration 'CATALOGO-SERVICE' }
+        # Catalogo ya heredo su copia. Ventas usa otra cuenta y otra contrasena.
+        $env:VENTAS_DB_USERNAME = 'checkpoint_ventas_app'
+        $ventasPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($ventasPassword)
+        try {
+            $env:VENTAS_DB_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ventasPointer)
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ventasPointer)
+        }
+        try {
+            Start-ServiceWindow 'venta-service' 9094
+        } finally {
+            foreach ($name in @('VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD', 'STOCK_SERVICE_JWT_SECRET')) {
+                [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+            }
+            $stockSecret = $null
+        }
+        Wait-Ready 'Ventas HTTP' { Test-Http 'http://127.0.0.1:9094/api/ventas/v3/api-docs' }
+        Wait-Ready 'registro de Ventas en Eureka' { Test-Registration 'VENTA-SERVICE' }
     }
     Start-ServiceWindow 'api-gateway' 9090
     Wait-Ready 'Gateway y su ruta hacia Identidad' { Test-Http 'http://127.0.0.1:9090/auth/v3/api-docs' }
     if ($IncluirCatalogo) {
         Wait-Ready 'registro de Gateway en Eureka' { Test-Registration 'API-GATEWAY' }
         Wait-Ready 'Gateway y su ruta hacia Catalogo' { Test-Http 'http://127.0.0.1:9090/api/productos/v3/api-docs' }
+        Wait-Ready 'Gateway y su ruta hacia Ventas' { Test-Http 'http://127.0.0.1:9090/api/ventas/v3/api-docs' }
     }
     Write-Host 'Entorno disponible. Gateway: http://127.0.0.1:9090'
     Write-Host 'Clave JWT nueva: vuelve a iniciar sesion en Postman; los tokens anteriores ya no sirven.'
@@ -257,7 +307,7 @@ try {
         $_.CategoryInfo.Category -eq 'OperationStopped') {
         Write-Host $_.Exception.Message -ForegroundColor Red
     } else {
-        Write-Host 'No se pudo completar el arranque. Revisa las ventanas de los servicios y las rutas locales.' -ForegroundColor Red
+        Write-Host "No se pudo completar el arranque en: $stage. Revisa su ventana y las rutas locales." -ForegroundColor Red
     }
     Write-Host 'Los servicios ya abiertos permanecen visibles. Detenlos con Ctrl+C antes de reintentar.'
     $exitCode = 1
@@ -266,6 +316,8 @@ try {
         [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process')
     }
     if ($null -ne $password) { $password.Dispose() }
+    if ($null -ne $ventasPassword) { $ventasPassword.Dispose() }
+    $stockSecret = $null
     if ($null -ne $rawgSecret) { $rawgSecret.Dispose() }
     if ($null -ne $rng) { $rng.Dispose() }
 }

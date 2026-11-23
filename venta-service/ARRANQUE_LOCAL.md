@@ -2,7 +2,15 @@
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
 repositorio. Para el recorrido por Gateway también se necesitan Eureka y Gateway.
-No usar el lanzador general: todavía no incorpora Ventas.
+Para el entorno completo, usar por doble clic `../iniciar_checkpoint_local.bat`:
+inicia Eureka, Identidad, Catálogo, Ventas y Gateway. Solicita la contraseña
+`checkpoint_app` y, por separado, `checkpoint_ventas_app`, ambas ocultas.
+Genera el JWT_SECRET humano compartido y prepara STOCK_SERVICE_JWT_SECRET
+solo para Catálogo/Ventas; Ventas todavía no emite JWT de servicio ni llama stock.
+Mantiene `ddl-auto=validate` y los permisos SELECT actuales. No ejecutar
+simultáneamente ese lanzador y las consolas aisladas de este documento.
+Ver [arranque Windows](../ARRANQUE_LOCAL_WINDOWS.md) para disponibilidad,
+registro VENTA-SERVICE en Eureka, detención y login tras reiniciar.
 
 **El servicio conserva la lógica heredada. Solo realizar las consultas GET
 indicadas. No ejecutar POST, PUT o DELETE para simular compras.** La etapa 2

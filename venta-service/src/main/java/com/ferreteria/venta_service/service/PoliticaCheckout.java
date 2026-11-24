@@ -8,9 +8,8 @@ import java.util.Objects;
  * Puerto exclusivo del backend, no parámetro del registro ni contrato HTTP.
  * Una implementación debe acreditar composición de TODOS los productos, aceptación
  * de la versión de condiciones y aplicabilidad de la política a la entrega.
- * Solo lógica/configuración local confiable; sin HTTP ni precios del frontend.
- * DespachoFijoV1 implementa la tarifa aprobada; no se instala un preparador hasta
- * disponer también de clasificación confiable de Catálogo previa al registro.
+ * Puede consultar metadatos de Catálogo fuera de transacciones, sin descontar.
+ * PoliticaCheckoutCatalogo acredita composición y aplica DespachoFijoV1.
  */
 public interface PoliticaCheckout {
     Preparacion preparar(ContratoStock.Solicitud solicitud, DatosCheckoutSolicitud.Entrada entrada);

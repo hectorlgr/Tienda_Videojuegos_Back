@@ -67,7 +67,7 @@ $names = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET', 'STOCK_SERVICE_
     'BOOTSTRAP_ADMIN_ENABLED', 'EUREKA_URL')
 if ($IncluirCatalogo) {
     $names += @('CATALOGO_DB_USERNAME', 'CATALOGO_DB_PASSWORD',
-        'VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD',
+        'VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD', 'CHECKOUT_VERSION_CONDICIONES',
         'RAWG_API_KEY',
         'CATALOGO_IMAGENES_DIR', 'CATALOGO_PUBLIC_BASE_URL',
         'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION', 'SPRING_CONFIG_IMPORT',
@@ -282,9 +282,12 @@ try {
             [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ventasPointer)
         }
         try {
+            # Condiciones aprobadas, no secretas; solo Ventas hereda este valor.
+            $env:CHECKOUT_VERSION_CONDICIONES = 'CHECKPOINT_COMPRA_V1'
             Start-ServiceWindow 'venta-service' 9094
         } finally {
-            foreach ($name in @('VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD', 'STOCK_SERVICE_JWT_SECRET')) {
+            foreach ($name in @('VENTAS_DB_USERNAME', 'VENTAS_DB_PASSWORD', 'STOCK_SERVICE_JWT_SECRET',
+                    'CHECKOUT_VERSION_CONDICIONES')) {
                 [Environment]::SetEnvironmentVariable($name, $null, 'Process')
             }
             $stockSecret = $null

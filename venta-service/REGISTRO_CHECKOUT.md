@@ -1,5 +1,10 @@
 # Registro durable de checkout — Etapa 4.6B.3A
 
+Actualización 4.6B.3B: [LECTURA_PRODUCTOS_CHECKOUT.md](LECTURA_PRODUCTOS_CHECKOUT.md)
+describe el preparador instalado y los GET de Catálogo fuera de TX. La clasificación
+previa ya está integrada; se exige configurar la versión real de condiciones.
+Las referencias siguientes al preparador ausente describen etapas anteriores.
+
 Actualización: tarifa V1 aprobada e implementada como regla pura; ver
 [POLITICA_DESPACHO_V1.md](POLITICA_DESPACHO_V1.md). Continúa faltando clasificación
 confiable previa al registro. Las referencias siguientes a tarifa no aprobada

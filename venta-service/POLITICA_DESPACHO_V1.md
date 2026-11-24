@@ -1,5 +1,10 @@
 # Despacho fijo V1 — regla aprobada
 
+Actualización 4.6B.3B: prelectura integrada en
+[LECTURA_PRODUCTOS_CHECKOUT.md](LECTURA_PRODUCTOS_CHECKOUT.md).
+`PoliticaCheckoutCatalogo` es el preparador instalado; las referencias siguientes
+al cliente/bean pendiente son historia de la etapa de regla pura.
+
 `DespachoFijoV1` es lógica pura interna, sin HTTP, persistencia ni bean de
 preparación automática. Identificador `DESPACHO_FIJO_V1`, versión de política 1,
 contrato comercial 1. Compatible con SQL 04 sin migración.

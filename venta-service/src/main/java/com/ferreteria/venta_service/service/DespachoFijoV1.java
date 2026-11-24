@@ -5,8 +5,7 @@ import com.ferreteria.venta_service.stock.ContratoStock;
 import java.util.Objects;
 
 /**
- * Regla comercial pura aprobada. No es un bean PoliticaCheckout: falta la
- * consulta confiable de composición ANTES de registrar la intención.
+ * Regla comercial pura aprobada, compartida por prelectura y snapshot definitivo.
  */
 public final class DespachoFijoV1 {
     public static final String POLITICA = "DESPACHO_FIJO_V1";
@@ -21,10 +20,7 @@ public final class DespachoFijoV1 {
         boolean fisico = false;
         boolean digital = false;
         for (var item : snapshot.items()) {
-            if (item.formato() == ContratoStock.Formato.DIGITAL) {
-                if (item.categoria() != ContratoStock.Categoria.VIDEOJUEGO) {
-                    throw new IllegalArgumentException("Formato digital no admitido para esta categoría");
-                }
+            if (clasificarProducto(item.categoria(), item.formato()) == PoliticaCheckout.Composicion.DIGITAL) {
                 digital = true;
             } else {
                 // ContratoStock exige formato para videojuegos. NULL en las
@@ -34,6 +30,21 @@ public final class DespachoFijoV1 {
         }
         return fisico ? (digital ? PoliticaCheckout.Composicion.MIXTA : PoliticaCheckout.Composicion.FISICA)
                 : PoliticaCheckout.Composicion.DIGITAL;
+    }
+
+    public static PoliticaCheckout.Composicion clasificarProducto(ContratoStock.Categoria categoria,
+            ContratoStock.Formato formato) {
+        Objects.requireNonNull(categoria, "Categoría requerida");
+        if (categoria == ContratoStock.Categoria.VIDEOJUEGO && formato == null) {
+            throw new IllegalArgumentException("Videojuego sin formato");
+        }
+        if (formato == ContratoStock.Formato.DIGITAL) {
+            if (categoria != ContratoStock.Categoria.VIDEOJUEGO) {
+                throw new IllegalArgumentException("Formato digital no admitido para esta categoría");
+            }
+            return PoliticaCheckout.Composicion.DIGITAL;
+        }
+        return PoliticaCheckout.Composicion.FISICA;
     }
 
     /** Importe por pedido; independiente del número de productos y unidades. */

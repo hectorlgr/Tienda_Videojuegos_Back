@@ -2,6 +2,13 @@ spring.application.name=venta-service
 server.port=9094
 server.address=127.0.0.1
 
+# Condiciones aprobadas: CHECKPOINT_COMPRA_V1. El lanzador integrado aporta la variable.
+# Sin variable, las preparaciones nuevas permanecen bloqueadas.
+checkout.version-condiciones=${CHECKOUT_VERSION_CONDICIONES:}
+catalogo.productos.connect-timeout-ms=2000
+catalogo.productos.response-timeout-ms=5000
+catalogo.productos.total-timeout-ms=15000
+
 # Mismo texto externo que Identidad y Gateway: minimo 32 bytes UTF-8, HS256.
 jwt.secret=${JWT_SECRET}
 

@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Solo persistencia local. Comprador recibido de código confiable, nunca de un body/encabezado. */
 @Service
@@ -49,7 +50,7 @@ public class SolicitudPedidoService {
 
     /**
      * Registro completo. El llamador aporta identidad autenticada y entrada, nunca
-     * contexto del servidor. La preparación local se ejecuta antes de la transacción.
+     * contexto del servidor. La prelectura HTTP se ejecuta antes de la transacción.
      */
     public SolicitudPedidoInterna registrarConCheckout(Long compradorId, String claveIdempotencia,
             List<ContratoStock.Item> items, DatosCheckoutSolicitud.Entrada entrada) {
@@ -64,6 +65,11 @@ public class SolicitudPedidoService {
         var previa = buscar(compradorId, clave.toString());
         if (previa.isPresent()) return comprobarCheckout(previa.get(), canonica, hashStock, entrada, hashCheckout);
         DatosCheckoutSolicitud.Checkout checkout;
+        // REQUIRES_NEW de la lectura ya finalizó. Rechazar una TX externa del llamador:
+        // suspenderla mantendría su conexión/locks durante HTTP.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Registrar un checkout nuevo requiere un llamador sin transacción");
+        }
         try {
             PoliticaCheckout proveedor = politica.getIfAvailable();
             if (proveedor == null) throw new PreparacionCheckoutException(

@@ -1,5 +1,9 @@
 # Coordinador interno — Etapa 4.6C
 
+Actualización 4.7: [CHECKOUT_HTTP.md](CHECKOUT_HTTP.md) expone `comprar` mediante
+POST autenticado para CLIENTE. `continuar(id)` permanece interno; no se añaden
+schedulers ni endpoints administrativos de recuperación.
+
 ## API y confianza
 
 Bean `CoordinadorPedidoService`, sin endpoints ni tareas automáticas:

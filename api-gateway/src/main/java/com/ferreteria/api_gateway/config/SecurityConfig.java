@@ -45,6 +45,7 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .pathMatchers("/auth/**").denyAll()
                                                 // Pedidos nuevos: el literal debe ir antes del patrón {id}.
+                                                .pathMatchers(HttpMethod.POST, "/api/pedidos").hasRole("CLIENTE")
                                                 .pathMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos")
                                                 .hasRole("CLIENTE")
                                                 .pathMatchers(HttpMethod.GET, "/api/pedidos/{id}")
@@ -133,7 +134,7 @@ public class SecurityConfig {
                                 "http://localhost:5173",
                                 "http://127.0.0.1:5173"));
                 cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
                 cors.setAllowCredentials(false);
                 cors.setMaxAge(600L);
 

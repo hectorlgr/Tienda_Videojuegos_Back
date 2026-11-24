@@ -1,5 +1,9 @@
 # Ventas — etapa 2: JWT local y bloqueo temporal
 
+Actualización 4.7: se permite únicamente `POST /api/pedidos` para CLIENTE.
+Ver [CHECKOUT_HTTP.md](CHECKOUT_HTTP.md). Los bloqueos de compras descritos abajo
+corresponden a la etapa 2; las escrituras heredadas permanecen denegadas.
+
 Se conserva el código de negocio, DTO, entidades y esquema de la etapa 1.
 No se habilitan compras, pagos, pedidos ni despachos nuevos.
 

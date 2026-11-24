@@ -49,6 +49,7 @@ public class SecurityConfig {
                         // Despacho interno de errores; no abre /error a peticiones externas.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos").hasRole("CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos").hasRole("CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/pedidos/{id}")
                         .hasAnyRole("CLIENTE", "ADMINISTRADOR")

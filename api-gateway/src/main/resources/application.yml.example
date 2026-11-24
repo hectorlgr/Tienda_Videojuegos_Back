@@ -35,10 +35,7 @@ spring:
           uri: lb://promocion-service
           predicates:
             - Path=/api/promociones/**
-        - id: pedido-service
-          uri: lb://pedido-service
-          predicates:
-            - Path=/api/pedidos/**
+        # /api/pedidos y /api/admin/pedidos se dirigen a Ventas mediante PedidoRoutesConfig.
         - id: identidad-service
           uri: lb://identidad-service
           predicates:
@@ -88,8 +85,6 @@ springdoc:
         url: /api/ventas/v3/api-docs
       - name: 3. Usuario Service
         url: /api/usuarios/v3/api-docs
-      - name: 4. Pedido Service
-        url: /api/pedidos/v3/api-docs
       - name: 5. Promoción Service
         url: /api/promociones/v3/api-docs
       - name: 6. Inventario Service

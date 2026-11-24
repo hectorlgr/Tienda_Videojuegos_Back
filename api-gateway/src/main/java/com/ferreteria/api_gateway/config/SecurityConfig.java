@@ -36,6 +36,7 @@ public class SecurityConfig {
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
                                 .authorizeExchange(exchanges -> exchanges
+                                                .pathMatchers("/internal", "/internal/**").denyAll()
                                                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                                                 // RUTAS PÚBLICAS
                                                 .pathMatchers(HttpMethod.POST, "/auth/login", "/auth/register/cliente")
@@ -43,6 +44,28 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.GET, "/auth/v3/api-docs", "/auth/v3/api-docs/**")
                                                 .permitAll()
                                                 .pathMatchers("/auth/**").denyAll()
+                                                // Pedidos nuevos: el literal debe ir antes del patrón {id}.
+                                                .pathMatchers(HttpMethod.POST, "/api/pedidos").hasRole("CLIENTE")
+                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos")
+                                                .hasRole("CLIENTE")
+                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/{id}")
+                                                .hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/admin/pedidos", "/api/admin/pedidos/{id}")
+                                                .hasRole("ADMINISTRADOR")
+                                                // Antes de Swagger genérico: sin rutas ni escrituras heredadas.
+                                                .pathMatchers("/api/pedidos", "/api/pedidos/**",
+                                                                "/api/admin/pedidos", "/api/admin/pedidos/**").denyAll()
+                                                // Ventas: lista cerrada antes de las excepciones genéricas de Swagger.
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/ventas/v3/api-docs", "/api/ventas/v3/api-docs/**")
+                                                .permitAll()
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/api/ventas", "/api/ventas/{id}",
+                                                                "/api/ventas/usuario/{usuarioId}", "/api/ventas/rango-fechas")
+                                                .hasRole("ADMINISTRADOR")
+                                                // Bloquea escrituras y consulta por email incluso para ADMINISTRADOR.
+                                                .pathMatchers("/api/ventas", "/api/ventas/**").denyAll()
                                                 .pathMatchers(
                                                                 "/doc/**",
                                                                 "/v3/api-docs/**",
@@ -81,9 +104,6 @@ public class SecurityConfig {
                                                 // INVENTARIO
                                                 .pathMatchers("/api/inventario/**").hasRole("ADMINISTRADOR")
 
-                                                // Ventas heredadas: comprador y consultas aún no ligados al JWT.
-                                                .pathMatchers("/api/ventas/**").hasRole("ADMINISTRADOR")
-
                                                 // Operaciones heredadas sin un contrato de acceso propio del cliente.
                                                 .pathMatchers("/api/despachos/**").hasRole("ADMINISTRADOR")
 
@@ -96,14 +116,6 @@ public class SecurityConfig {
 
                                                 // PROMOCIONES
                                                 .pathMatchers("/api/promociones/**").hasRole("ADMINISTRADOR")
-
-                                                // PEDIDOS
-                                                .pathMatchers(HttpMethod.GET, "/api/pedidos/usuario/*")
-                                                .hasAnyRole("ADMINISTRADOR", "VENDEDOR")
-                                                .pathMatchers(HttpMethod.POST, "/api/pedidos").hasRole("ADMINISTRADOR")
-                                                .pathMatchers(HttpMethod.PUT, "/api/pedidos/*/estado",
-                                                                "/api/pedidos/*/cancelar")
-                                                .hasRole("ADMINISTRADOR")
 
                                                 // Incluye rutas de los módulos retirados y operaciones no definidas.
                                                 .anyExchange().denyAll())
@@ -122,11 +134,13 @@ public class SecurityConfig {
                                 "http://localhost:5173",
                                 "http://127.0.0.1:5173"));
                 cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
                 cors.setAllowCredentials(false);
                 cors.setMaxAge(600L);
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/internal", new CorsConfiguration());
+                source.registerCorsConfiguration("/internal/**", new CorsConfiguration());
                 source.registerCorsConfiguration("/**", cors);
                 return source;
         }

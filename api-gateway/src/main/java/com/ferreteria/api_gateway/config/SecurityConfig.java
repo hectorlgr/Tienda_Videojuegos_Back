@@ -101,21 +101,11 @@ public class SecurityConfig {
                                                 .pathMatchers(HttpMethod.PUT, "/api/productos/*").hasRole("ADMINISTRADOR")
                                                 .pathMatchers(HttpMethod.DELETE, "/api/productos/*").hasRole("ADMINISTRADOR")
 
-                                                // INVENTARIO
-                                                .pathMatchers("/api/inventario/**").hasRole("ADMINISTRADOR")
-
-                                                // Operaciones heredadas sin un contrato de acceso propio del cliente.
-                                                .pathMatchers("/api/despachos/**").hasRole("ADMINISTRADOR")
-
                                                 // USUARIOS
                                                 .pathMatchers(HttpMethod.GET, "/api/v1/usuarios/me").authenticated()
                                                 .pathMatchers(HttpMethod.PATCH, "/api/v1/usuarios/me").authenticated()
                                                 .pathMatchers(HttpMethod.POST, "/api/v1/admin/usuarios")
                                                 .hasRole("ADMINISTRADOR")
-                                                .pathMatchers("/api/usuarios/**").hasRole("ADMINISTRADOR")
-
-                                                // PROMOCIONES
-                                                .pathMatchers("/api/promociones/**").hasRole("ADMINISTRADOR")
 
                                                 // Incluye rutas de los módulos retirados y operaciones no definidas.
                                                 .anyExchange().denyAll())

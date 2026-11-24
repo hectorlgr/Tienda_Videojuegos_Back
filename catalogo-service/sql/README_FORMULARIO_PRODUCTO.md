@@ -1,7 +1,7 @@
 # Evolución manual del modelo de productos — MySQL 8.4
 
 **Actualización posterior:** los DTO y el servicio ya se adaptaron al formulario.
-El contrato vigente está en `../FORMULARIO_PRODUCTOS_HTTP.md`, incluyendo
+El contrato vigente está en `../../docs/catalogo/FORMULARIO_PRODUCTOS_HTTP.md`, incluyendo
 plataforma obligatoria para VIDEOJUEGO y semántica de la galería.
 El grupo ProductoCompleto ahora se valida explícitamente en altas/ediciones,
 junto con Default; sigue sin activarse automáticamente en JPA.

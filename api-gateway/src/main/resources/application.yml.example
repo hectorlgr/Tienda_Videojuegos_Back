@@ -31,10 +31,6 @@ spring:
           predicates:
             - Path=/api/v1/usuarios/me
             - Method=GET,PATCH
-        - id: promocion-service
-          uri: lb://promocion-service
-          predicates:
-            - Path=/api/promociones/**
         # /api/pedidos y /api/admin/pedidos se dirigen a Ventas mediante PedidoRoutesConfig.
         - id: identidad-service
           uri: lb://identidad-service
@@ -48,18 +44,6 @@ spring:
           uri: lb://catalogo-service
           predicates:
             - Path=/api/productos/**
-        - id: usuario-service
-          uri: lb://usuario-service
-          predicates:
-            - Path=/api/usuarios/**
-        - id: inventario-service
-          uri: lb://inventario-service
-          predicates:
-            - Path=/api/inventario/**
-        - id: despacho-service
-          uri: lb://despacho-service
-          predicates:
-            - Path=/api/despachos/**
 
 eureka:
   instance:
@@ -83,13 +67,5 @@ springdoc:
         url: /api/productos/v3/api-docs
       - name: 2. Venta Service
         url: /api/ventas/v3/api-docs
-      - name: 3. Usuario Service
-        url: /api/usuarios/v3/api-docs
-      - name: 5. Promoción Service
-        url: /api/promociones/v3/api-docs
-      - name: 6. Inventario Service
-        url: /api/inventario/v3/api-docs
-      - name: 7. Despacho Service
-        url: /api/despachos/v3/api-docs
       - name: 8. Auth Service
         url: /auth/v3/api-docs

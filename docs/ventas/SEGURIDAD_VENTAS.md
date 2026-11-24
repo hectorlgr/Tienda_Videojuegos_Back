@@ -1,11 +1,6 @@
-# Ventas — etapa 2: JWT local y bloqueo temporal
+# Ventas — seguridad de las consultas y del checkout
 
-Actualización 4.7: se permite únicamente `POST /api/pedidos` para CLIENTE.
-Ver [CHECKOUT_HTTP.md](CHECKOUT_HTTP.md). Los bloqueos de compras descritos abajo
-corresponden a la etapa 2; las escrituras heredadas permanecen denegadas.
-
-Se conserva el código de negocio, DTO, entidades y esquema de la etapa 1.
-No se habilitan compras, pagos, pedidos ni despachos nuevos.
+`venta-service` atiende el [checkout](CHECKOUT_HTTP.md) y las [consultas de pedidos](CONSULTAS_PEDIDOS.md). Bajo `/api/ventas` se conservan las lecturas administrativas.
 
 ## JWT y respuestas
 
@@ -31,20 +26,16 @@ Ventas valida además identidad y expiración presente. En un GET administrativo
 permitido por Gateway, Ventas también rechaza tokens sin esos claims.
 Gateway puede rechazar antes una ruta bloqueada: no es una prueba del validador local.
 
-## Política completa de endpoints existentes
+## Lecturas autorizadas de ventas
 
 El path interno y público es el mismo. Solo cambia el puerto, 9094 o 9090.
 
-| Método y path | Política temporal |
+| Método y path | Permiso |
 | --- | --- |
 | GET /api/ventas | ADMINISTRADOR |
 | GET /api/ventas/{id} | ADMINISTRADOR |
 | GET /api/ventas/usuario/{usuarioId} | ADMINISTRADOR; nunca consulta propia de CLIENTE |
 | GET /api/ventas/rango-fechas | ADMINISTRADOR |
-| GET /api/ventas/cliente/email/{email} | Bloqueado para todos; depende de Usuarios heredado |
-| POST /api/ventas | Bloqueado para todos; comprador, precio y despacho inseguros |
-| PUT /api/ventas/{id} | Bloqueado para todos; modificación heredada |
-| DELETE /api/ventas/{id} | Bloqueado para todos; borrado físico sin reversión integral |
 
 No existe endpoint de cancelación en VentaController. Las demás rutas/métodos
 de negocio, incluido PATCH o una futura ruta de cancelación, quedan denegados
@@ -54,8 +45,7 @@ de GET. Los parámetros de consulta no alteran la regla de autorización.
 Excepciones sin datos comerciales: GET de OpenAPI
 `/api/ventas/v3/api-docs` y sus subpaths; Swagger UI directo; OPTIONS para
 preflight y despacho interno de errores. No se abre `/error` externamente.
-La documentación OpenAPI puede seguir mostrando las operaciones heredadas:
-sus anotaciones no sustituyen el bloqueo real de los filtros.
+El documento OpenAPI de Ventas incluye los pedidos. La consulta por correo y las escrituras retiradas de `/api/ventas` carecen de mapeo.
 Un Bearer inválido puede producir 401 incluso en una ruta pública.
 
 Gateway tiene la misma lista de lecturas administrativas y el bloqueo del
@@ -87,8 +77,7 @@ Seleccionar **No Auth** para casos sin token y **Bearer Token** para los demás.
 | DELETE /api/ventas/1 | 401 | 401 | 403 | 403 | 403 |
 | PATCH /api/ventas/1 | 401 | 401 | 403 | 403 | 403 |
 
-Para POST/PUT usar `Content-Type: application/json` y este contrato heredado
-solo como prueba NEGATIVA del bloqueo, no como simulación de compra:
+Para las pruebas negativas de POST/PUT puede conservarse este cuerpo histórico. La autorización rechaza la solicitud antes de procesar su contenido:
 
 ```json
 {
@@ -99,10 +88,7 @@ solo como prueba NEGATIVA del bloqueo, no como simulación de compra:
 }
 ```
 
-PATCH puede usar `{}` y DELETE no requiere body. El rechazo debe ser anterior
-a validación de DTO, consultas SQL y llamadas a servicios heredados. Un 400/404
-de negocio o un 5xx en esas escrituras no demuestra el bloqueo esperado.
-No iniciar los servicios heredados para estas comprobaciones.
+PATCH puede usar `{}` y DELETE no requiere body. Las filas de la matriz para operaciones retiradas comprueban la denegación por defecto. Un error de negocio o un 5xx no demuestra el bloqueo esperado.
 
 Casos adicionales centrados en este cambio:
 
@@ -112,8 +98,7 @@ Casos adicionales centrados en este cambio:
    401 en ambos; con token CLIENTE y esos headers: 403.
 3. POST /api/ventas con JWT ADMINISTRADOR y body `{}`: 403 en ambos,
    no un error de DTO. Esto distingue el bloqueo previo al controlador.
-4. GET /api/ventas/v3/api-docs sin token: 200 en ambos. La presencia de POST,
-   PUT o DELETE en OpenAPI no autoriza ejecutarlos.
+4. GET /api/ventas/v3/api-docs sin token: esperar 200 en ambos puertos y comprobar que solo aparecen las lecturas vigentes bajo `/api/ventas`.
 5. Si se dispone de una herramienta local de fixtures JWT de desarrollo:
    GET /api/ventas con role ADMINISTRADOR y firma de desarrollo válida, variando
    ausencia de exp, ausencia de userId, userId textual, cero, fraccionario o

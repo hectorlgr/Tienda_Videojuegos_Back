@@ -77,13 +77,10 @@ ni aceptación automática.
    de una clave existente con su contenido original sin GET, incluso si cambian
    las condiciones configuradas o la publicación de productos.
 
-No hay endpoint HTTP de checkout para estas verificaciones; los GET públicos de
-Catálogo por sí solos no prueban la integración Ventas → Eureka → Catálogo.
+Para comprobar la integración desde HTTP, seguir el [contrato de checkout](CHECKOUT_HTTP.md). Los GET públicos de Catálogo solo verifican la lectura del catálogo.
 
-## Pendientes antes del checkout público
+## Validaciones pendientes del checkout
 
 Validar en ejecución discovery, contrato JSON, permisos/roundtrip MySQL y carreras
-idempotentes. Integrar el coordinador de stock y su reconciliación/compensación
-segura ante contradicciones, y el futuro controlador autenticado y presentación
-de estas condiciones con aceptación explícita. La tarifa y el identificador V1
+idempotentes. Comprobar la integración del checkout autenticado con el coordinador, la reconciliación y la compensación, y verificar la presentación de las condiciones y su aceptación explícita. La tarifa y el identificador V1
 ya están aprobados; no queda pendiente inventar o aprobar otro identificador.

@@ -1,4 +1,4 @@
-# Instalación local desde cero — Windows / Identidad y Catálogo
+# Instalación local desde cero — Windows / CheckPoint Store
 
 Auditoría estática sobre `main`, 22 de noviembre de 2026. No se arrancaron
 servicios, instalaron dependencias, ejecutaron SQL ni crearon administradores
@@ -6,22 +6,22 @@ durante esta revisión. Los comandos siguientes son para el equipo receptor.
 
 ## 1. Resultado y requisitos
 
-**El repositorio contiene lo necesario para preparar este entorno de forma
+**El repositorio contiene las guías y los scripts para preparar este entorno de forma
 manual, sin copiar bases, secretos ni archivos privados de otro integrante.**
 No es una instalación automática: hay que preparar MySQL, completar el esquema
-de Catálogo con el paso 04 e inicializar una cuenta administrativa.
+de Catálogo, preparar la base de Ventas e inicializar una cuenta administrativa.
 La ejecución en un Windows limpio todavía debe verificarse.
 
 | Requisito | Necesidad y versión |
 | --- | --- |
-| JDK 21 | Obligatorio; los cuatro POM usan java.version=21. JRE solo no basta. Configurar JAVA_HOME al directorio del JDK y su bin en PATH. |
+| JDK 21 | Obligatorio; los cinco POM usan java.version=21. JRE solo no basta. Configurar JAVA_HOME al directorio del JDK y su bin en PATH. |
 | Windows con cmd y Windows PowerShell 5.1 | Obligatorios para los BAT/PS1 y mvnw.cmd. El lanzador usa powershell.exe, no requiere PowerShell 7. No hay una edición mínima de Windows declarada en el proyecto; Windows 10/11 con estos componentes es el entorno previsto, no una matriz certificada. |
 | Git para Windows | Obligatorio para clonar; no hay versión mínima específica declarada. Acceso al repositorio del equipo. |
 | MySQL Server 8.4 | Referencia explícita de los scripts. Usar 8.4 para reproducibilidad; no sustituir por MariaDB/MySQL 5.7. Se usan utf8mb4_0900_ai_ci, CHECK, REGEXP_LIKE y REGEXP_REPLACE. |
 | Cliente SQL y cuenta administradora de MySQL local | Obligatorios para crear esquemas/cuenta/permisos. Workbench es la opción documentada; no es obligatorio si se usa otro cliente compatible. |
 | Internet inicial | Necesario para distribuciones Maven y dependencias de Maven Central; acceso al repositorio Git. Proxy/firewall pueden bloquear descargas. |
 | Permisos Windows | Lectura/ejecución del clon, escritura en caché Maven, target de los módulos y carpeta local de imágenes. No se requiere ejecutar el backend como administrador de Windows. |
-| Maven instalado globalmente | **No necesario**: los cuatro módulos incluyen mvnw.cmd y .mvn/wrapper/maven-wrapper.properties. |
+| Maven instalado globalmente | **No necesario**: los cinco módulos incluyen mvnw.cmd y .mvn/wrapper/maven-wrapper.properties. |
 | Postman | Opcional; cliente recomendado para verificación HTTP. |
 | Node/npm y React/Vite | Solo para trabajar con el frontend; no necesarios para arrancar este backend. Sus versiones corresponden al repositorio frontend, no se deducen aquí. |
 | RAWG API Key | Opcional; CRUD manual y subida local funcionan sin ella. |
@@ -48,33 +48,33 @@ Java y javac deben corresponder a 21. Comprobar MySQL desde el cliente:
 
 | Componente | Puerto local | Función |
 | --- | --- | --- |
-| MySQL | 3306 | Dos bases propias del compañero |
+| MySQL | 3306 | Bases de Identidad, Catálogo y Ventas |
 | Eureka | 8761 | Descubrimiento para rutas lb:// del Gateway |
 | Identidad | 9096 | Registro, login y perfil |
 | Catálogo | 9091 | Productos, imágenes y RAWG |
+| Ventas | 9094 | Ventas, checkout y consultas de pedidos |
 | API Gateway | 9090 | Único origen de API para React |
 | Vite (opcional) | 5173 | Frontend |
 
-El lanzador completo comprueba que 8761/9096/9091/9090 estén libres y que MySQL
+El lanzador completo comprueba que 8761/9096/9091/9094/9090 estén libres y que MySQL
 acepte TCP en 127.0.0.1:3306. Comprobar TCP no valida contraseña ni tablas.
 No cambiar los puertos para sortear un conflicto: identificar y detener la
 instancia anterior que los ocupa. Con el lanzador los servicios escuchan en
 127.0.0.1; no es un despliegue para acceso desde otros computadores.
 
-**No arrancar** usuario-service, inventario-service, promocion-service,
-venta-service, pedido-service ni despacho-service para este objetivo.
-Las operaciones vigentes de Identidad/Catálogo no dependen de ellos.
-El Gateway conserva sus rutas y Swagger puede mostrarlos: consultarlos sin
-arrancarlos puede dar 503, pero eso no impide login ni CRUD de Catálogo.
+Antes del arranque integrado, completar la preparación de Identidad y Catálogo de esta guía, incluido el [esquema de operaciones de stock](../catalogo/OPERACIONES_STOCK.md). Preparar también la base y cuenta de [Ventas](../ventas/ARRANQUE_LOCAL.md) y revisar sus [permisos para materializar pedidos](../ventas/MATERIALIZACION_PEDIDO.md).
 
-## 2. Clonar main
+Swagger del Gateway reúne Identidad, Catálogo y Ventas en `http://localhost:9090/doc/swagger-ui.html`. Los pedidos se documentan en `/api/ventas/v3/api-docs`.
+
+## 2. Clonar la revisión que contiene los cinco módulos
 
 Obtener la URL del repositorio del equipo (sin tokens incrustados) y ejecutar
 desde la carpeta elegida:
 
 ```powershell
 $url = Read-Host 'URL Git del backend proporcionada por el equipo'
-git clone --branch main --single-branch $url checkpoint-store-backend
+$rama = Read-Host 'Rama de entrega indicada por el equipo'
+git clone --branch $rama --single-branch $url checkpoint-store-backend
 Set-Location checkpoint-store-backend
 git status --short --branch
 ```
@@ -137,7 +137,7 @@ SHOW GRANTS FOR 'checkpoint_app'@'127.0.0.1';
 
 No necesita CREATE/ALTER/DROP/INDEX ni privilegios globales. No hace falta
 FLUSH PRIVILEGES tras CREATE USER/GRANT hechos por las herramientas de MySQL.
-El lanzador solicita **una** contraseña y usa esta misma cuenta para las dos bases.
+`checkpoint_app` comparte credenciales entre Identidad y Catálogo. Ventas usa `checkpoint_ventas_app` con contraseña independiente.
 
 ### 3.3 Orden exacto de esquema para una base nueva
 
@@ -184,10 +184,7 @@ No hay que esperar otra implementación para ejecutar 04 sobre una base vacía.
 | 06_unicidad_variantes_rawg.sql | Solo esquema existente sin índice/CHECK de variantes. El CREATE nuevo **ya los instala**. |
 | catalogo-service/src/main/resources/db/changelog/db.changelog.sql | Esquema y productos históricos de ferretería, incompatible con el actual. |
 
-Los otros `.sql` encontrados pertenecen a `usuario-service`, `inventario-service`,
-`venta-service`, `pedido-service` y `despacho-service`, bajo
-`src/main/resources/db/changelog/`: contienen tablas/datos heredados y no forman
-parte de esta instalación. No ejecutarlos ni iniciar migradores.
+Para Ventas, utilizar los scripts manuales referenciados en su guía de arranque. Los changelogs históricos quedan fuera de la instalación.
 No hay un script versionado que cree automáticamente usuario y bases: esos
 pasos son manuales según esta sección.
 
@@ -321,10 +318,10 @@ Más detalles: `../identidad/INICIALIZAR_ADMIN_LOCAL.md`.
 
 1. Mantener MySQL iniciado, tablas/permisos preparados y bootstrap detenido.
 2. Abrir **iniciar_checkpoint_local.bat** desde el Explorador.
-3. Introducir contraseña MySQL de checkpoint_app en el prompt oculto.
+3. Introducir por separado las contraseñas de `checkpoint_app` y `checkpoint_ventas_app` en los prompts ocultos.
 4. Introducir RAWG_API_KEY propia en el prompt oculto o pulsar Enter para omitir.
    Si ya existe en el entorno, el lanzador reutiliza esa clave sin imprimirla.
-5. Esperar Eureka → Identidad → Catálogo → Gateway y el mensaje de disponibilidad.
+5. Esperar Eureka → Identidad → Catálogo → Ventas → Gateway y el mensaje de disponibilidad.
    Hay ventanas separadas de logs y esperas de hasta 180 segundos por comprobación.
 
 El BAT llama `iniciar_identidad.ps1 -IncluirCatalogo` con Windows PowerShell
@@ -334,18 +331,18 @@ corporativa puede impedirlo; no se modifica la política global del computador.
 ### Configuración realmente utilizada
 
 - Eureka: `eureka-server/src/main/resources/application.properties`.
-- Identidad y Catálogo: sus `application.properties.example`.
+- Identidad, Catálogo y Ventas: sus `application.properties.example`.
 - Gateway: `api-gateway/src/main/resources/application.yml.example`.
 - Rutas administrativas de Catálogo: además se registran desde
   `api-gateway/.../config/CatalogoAdminRoutesConfig.java`, no necesitan un YAML privado.
 - El modo completo neutraliza overrides de datasource, perfiles/configuración,
   puertos y validación; fija validate, init=never y desactiva migradores.
 - Genera 64 bytes aleatorios con RNG criptográfico y convierte a texto Base64.
-  Identidad, Catálogo y Gateway heredan exactamente ese mismo JWT_SECRET.
+  Identidad, Catálogo, Ventas y Gateway heredan exactamente ese mismo JWT_SECRET.
   Cada nuevo arranque invalida tokens antiguos: volver a hacer login.
 - Eureka no recibe secretos DB/JWT. Identidad recibe DB_URL/DB_USERNAME/DB_PASSWORD;
-  Catálogo recibe CATALOGO_DB_USERNAME/CATALOGO_DB_PASSWORD; Gateway no recibe DB.
-  RAWG_API_KEY se asigna solo al proceso de Catálogo y se retira antes de Gateway.
+  Catálogo y Ventas reciben las credenciales de sus respectivas cuentas. Gateway no recibe credenciales MySQL.
+  Solo Catálogo recibe RAWG_API_KEY. Catálogo y Ventas comparten STOCK_SERVICE_JWT_SECRET para las llamadas internas de stock. Solo Ventas recibe CHECKOUT_VERSION_CONDICIONES.
 - Las variables se heredan por los hijos; no se escriben secretos en argumentos
   Maven ni configuraciones. Al terminar el lanzador restaura su entorno previo.
 - El modo antiguo sin `-IncluirCatalogo` espera configuraciones privadas
@@ -464,7 +461,7 @@ preflight exitoso cuando corresponda y respuesta real legible sin error CORS.
 | Java ausente o versión incorrecta | JDK 21, JAVA_HOME y PATH en una consola nueva; mvnw.cmd no instala Java. |
 | Wrapper no descarga / tarda demasiado | Acceso HTTPS a Maven Central, proxy y caché local. El primer arranque puede superar 180 s; esperar el build, detener lo abierto y reintentar con la caché preparada. No iniciar otra copia sobre puertos ocupados. |
 | MySQL no acepta TCP | Servicio MySQL iniciado en 127.0.0.1:3306; el lanzador no lo inicia. |
-| Access denied | Contraseña de checkpoint_app, host real de cuenta con CURRENT_USER y GRANT en ambas bases. No usar root en el lanzador. |
+| Access denied | Comprobar contraseña, host real con CURRENT_USER y GRANT de la cuenta del servicio: checkpoint_app para Identidad/Catálogo y checkpoint_ventas_app para Ventas. No usar root en el lanzador. |
 | Public Key Retrieval/SSL de Connector/J | Los ejemplos no añaden allowPublicKeyRetrieval ni configuran certificados. Revisar autenticación/TLS del MySQL local con su administrador; esta compatibilidad requiere prueba real. No cambiar a una contraseña débil ni desactivar seguridad global para ocultarlo. |
 | Error schema-validation | Revisar DDL de users/productos/producto_imagenes, esquema seleccionado, tipos y permisos. No habilitar ddl-auto=update. |
 | Error duplicate column/index al preparar esquema | Se ejecutó un paso para base existente o se repitió DDL. Inspeccionar SHOW CREATE; no ejecutar 01/06 sobre el CREATE actualizado. |
@@ -473,7 +470,7 @@ preflight exitoso cuando corresponda y respuesta real legible sin error CORS.
 | Bootstrap no se ejecuta con doble clic | Es deliberado. Usar el procedimiento puntual de sección 4. |
 | 401 después de reiniciar | JWT_SECRET cambió; repetir login. |
 | 403 administrativo | La cuenta no es ADMINISTRADOR; revisar rol del usuario bootstrap. |
-| 503 Gateway | Revisar servicio y registro en Eureka; esperar descubrimiento. No probar rutas de módulos heredados apagados. |
+| 503 Gateway | Revisar servicio y registro en Eureka; esperar descubrimiento. |
 | Subida 500 | Permisos/espacio en carpeta local de imágenes y overrides heredados. |
 | Imagen rota | URL pública guardada, archivo local presente, puerto Gateway; cambiar la base pública no reescribe URLs antiguas. |
 | Error CORS | Origen exacto, método/header permitido, ambos servicios operativos. Postman no valida restricciones de navegador. |
@@ -496,7 +493,7 @@ preflight exitoso cuando corresponda y respuesta real legible sin error CORS.
 
 ## 9. Detener los servicios
 
-Ctrl+C en las terminales, en este orden: **Gateway → Catálogo → Identidad →
+Ctrl+C en las terminales, en este orden: **Gateway → Ventas → Catálogo → Identidad →
 Eureka**. Si cmd pregunta si termina el trabajo por lotes, confirmar; luego
 cerrar esas ventanas. Cerrar solo el lanzador **no detiene** servicios.
 Si el arranque falló parcialmente, los hijos ya iniciados siguen abiertos:
@@ -511,7 +508,7 @@ seguridad/CORS/rutas Gateway, rutas administrativas e implementación de imágen
 La revisión no utilizó secretos ni configuraciones locales privadas.
 
 **Aceptación pendiente en otro computador:** descarga inicial y compilación de
-los cuatro módulos, ejecución del DDL con MySQL 8.4, cuenta/permisos efectivos,
+los cinco módulos, ejecución del DDL con MySQL 8.4, cuenta/permisos efectivos,
 arranque Hibernate validate, bootstrap real, login/roles, persistencia e índices,
 escritura/lectura de imágenes, React/CORS y RAWG con una clave válida si se usará.
 No se certifica una instalación ejecutada por haber inspeccionado el código.

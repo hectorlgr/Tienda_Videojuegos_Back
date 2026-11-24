@@ -54,9 +54,7 @@ La autorización HTTP de esta nueva configuración está pendiente de prueba.
 
 Para una prueba local aislada se puede usar baseUrl=http://localhost:9091;
 también requiere Bearer ADMINISTRADOR para escribir. Eso no valida los permisos
-del Gateway: repetir después con 9090. El POST y los GET no llaman
-a inventario-service. El PUT administrativo tampoco llama a Inventario;
-sus ejemplos están en `PRUEBAS_ACTUALIZACION_CATALOGO.md`.
+del Gateway: repetir después con 9090. Catálogo gestiona productos y stock localmente. Los ejemplos de PUT administrativo están en `PRUEBAS_ACTUALIZACION_CATALOGO.md`.
 DELETE realiza baja lógica local; su comprobación se detalla al final.
 
 ## Cuatro POST de ejemplo
@@ -201,7 +199,5 @@ Primero baseUrl=http://localhost:9091, después repetir con 9090.
    Con CLIENTE o VENDEDOR: **403**. Verificar mediante GET que sigue habilitado.
 
 El servicio busca con findByIdForUpdate y trabaja en una transacción local. Solo asigna
-habilitado=false cuando estaba activo; no borra filas ni cambia stock, y no
-necesita que inventario-service esté iniciado. La protección de Gateway y
-Catálogo permanece ADMINISTRADOR. Las pruebas manuales de DELETE/PUT sí
+habilitado=false cuando estaba activo y conserva las filas y el stock. Gateway y Catálogo exigen ADMINISTRADOR. Las pruebas manuales de DELETE/PUT sí
 cambiarán la visibilidad cuando se ejecuten; no se ejecutaron en esta tarea.

@@ -299,7 +299,7 @@ si el reloj local retrocede; eso no sustituye la sincronización de relojes.
 - Errores técnicos, deadlock, timeout de BD u optimismo fallido: propagar y rollback.
   Sin reintento automático ni traducción a fallo de stock.
 
-No se añade traducción HTTP: aún no existe endpoint para este servicio.
+El servicio de persistencia es interno. El contrato HTTP del checkout se documenta en [CHECKOUT_HTTP.md](CHECKOUT_HTTP.md).
 El DTO de recuperación conserva JSON y UUID para futura reconciliación, no
 información de una aplicación remota que esta etapa no ejecuta.
 

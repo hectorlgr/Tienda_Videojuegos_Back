@@ -92,7 +92,7 @@ colisión como éxito. No se continúa usando una transacción fallida.
 
 `MaterializacionPedidoException` distingue:
 
-| Código | Acción del futuro coordinador |
+| Código | Acción del coordinador |
 |---|---|
 | PERSISTENCIA_TRANSITORIA | Reconciliar/reintentar con la misma solicitud y UUID; reclamar si venció. |
 | ENTREGA_FISICA_AUSENTE, DESPACHO_DIGITAL_INVALIDO, TOTAL_NO_ACEPTADO, TOTAL_FUERA_DE_RANGO | Incumplimiento comercial; `requiereCompensacion()` es true. |
@@ -107,7 +107,7 @@ commit puede dejar resultado desconocido: recuperar por la misma identidad.
 
 La señal comercial **no persiste COMPENSACION_PENDIENTE**. Ningún fallo ejecuta
 reversión ni libera el claim confirmado previamente en otra transacción.
-Si se requiere compensar, el futuro coordinador debe guardar primero una decisión
+Si se requiere compensar, el coordinador debe guardar primero una decisión
 explícita con lock/token vigente, fuera de la transacción fallida, volviendo a
 verificar que nadie haya creado un pedido. Solo después podrá autorizar la
 reversión idempotente del UUID original. Rollback local nunca significa restitución.
@@ -141,10 +141,6 @@ Con permisos y un llamador interno autorizado, comprobar:
 7. COMPENSACION_PENDIENTE y RESUELTA no exitosa: nunca materializar.
 8. Pérdida de respuesta tras commit: recuperar exactamente el ID original.
 
-## Integración pendiente
+## Integración y validaciones pendientes
 
-Registro durable de checkout con canonicalizador/hash y recuperación completa;
-aprobación/versionado de condiciones y política de despacho; coordinación con
-CatalogoStockClient fuera de transacciones locales; reconciliación usando UUID
-original; decisión durable y ejecución idempotente de compensaciones; pruebas
-reales de concurrencia, rollback, JSON y permisos. No hay checkout HTTP público.
+El [coordinador](COORDINADOR_PEDIDOS.md) integra la materialización, reconciliación y compensación. Quedan pendientes las pruebas reales de concurrencia, rollback, JSON y permisos. El acceso HTTP vigente se documenta en [checkout](CHECKOUT_HTTP.md).

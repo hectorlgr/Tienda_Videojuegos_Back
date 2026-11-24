@@ -2,7 +2,7 @@
 
 Implementación limitada a Ventas. Sin endpoints nuevos, compras, escrituras de
 pedidos, compensaciones automáticas, cambios SQL o permisos de MySQL.
-El cliente no se invoca durante el arranque ni desde los controladores existentes.
+El cliente se invoca desde el coordinador durante el checkout. El arranque solo comprueba disponibilidad.
 
 ## Métodos
 
@@ -15,7 +15,7 @@ Mono<ResultadoStock> revertir(UUID id, ContratoStock.Solicitud solicitudOriginal
 Mono<ResultadoStock> reconciliar(UUID id); // alias explícito de consultar
 ```
 
-El UUID siempre procede del futuro coordinador, nunca se genera en este cliente.
+El UUID siempre procede del coordinador, nunca se genera en este cliente.
 La solicitud incluye solo `versionContrato: 1` e `items: [{productoId, cantidad}]`.
 Los records validan 1..100 ítems, IDs/cantidades positivos y sin duplicados.
 Se comprueba además el límite de 16 KiB. Valores inválidos locales lanzan excepción
@@ -130,12 +130,12 @@ APLICADA, RECHAZADA, REVERTIDA, CANCELADA. Para los demás es una señal conserv
 no ejecuta la consulta ni determina que sea seguro repetir una escritura.
 Incluso una solicitud inválida actual no resuelve el estado de intentos anteriores.
 
-## Reconciliación futura
+## Reconciliación
 
 1. Ante timeout/5xx/conexión perdida, conservar intención y UUID.
 2. Invocar `reconciliar(uuid)` con el mismo UUID: solo hace GET.
 3. APLICADA: recuperar snapshot; no generar otra operación para la misma compra.
-4. PENDIENTE: decidir continuar/revertir desde el futuro coordinador durable.
+4. PENDIENTE: decidir continuar/revertir desde el coordinador durable.
 5. RECHAZADA/REVERTIDA/CANCELADA: respetar resultado definitivo.
 6. INEXISTENTE: no prueba que un POST retrasado no vaya a llegar. Para abandonar
    con seguridad se requiere cierre preventivo, usando solicitud original.
@@ -155,8 +155,7 @@ No se afirma integración funcional en ejecución.
 Pendiente en un entorno autorizado: arranque con secreto compartido, descubrimiento
 Eureka, interoperabilidad JWT, serialización del snapshot, 409 de ambos formatos,
 reversión repetida, indisponibilidad, timeout tras commit y reconciliación por UUID.
-No hay endpoint público en Ventas para provocar estas pruebas; hará falta un
-llamador interno/arnés autorizado o el futuro coordinador.
+El checkout invoca al cliente mediante el coordinador. Para aislar los fallos de transporte de esta matriz se requiere un entorno de prueba controlado.
 Eureka es infraestructura confiable: restringir su acceso, y usar TLS/red interna
 para credenciales en despliegue. El secreto HS256 compartido debe mantenerse
 fuera del frontend y de Gateway.

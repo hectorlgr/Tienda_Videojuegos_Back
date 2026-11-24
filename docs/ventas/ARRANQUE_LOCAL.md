@@ -20,25 +20,12 @@ Para el entorno completo, usar por doble clic `../../iniciar_checkpoint_local.ba
 inicia Eureka, Identidad, Catálogo, Ventas y Gateway. Solicita la contraseña
 `checkpoint_app` y, por separado, `checkpoint_ventas_app`, ambas ocultas.
 Genera el JWT_SECRET humano compartido y prepara STOCK_SERVICE_JWT_SECRET
-solo para Catálogo/Ventas. Desde Etapa 4.5 Ventas contiene un cliente interno que
-emite JWT al invocarse; aún no hay flujo ni endpoint de pedidos que lo invoque.
-Mantiene `ddl-auto=validate` y los permisos SELECT actuales. No ejecutar
-simultáneamente ese lanzador y las consolas aisladas de este documento.
-Ver [arranque Windows](../../ARRANQUE_LOCAL_WINDOWS.md) para disponibilidad,
+solo para Catálogo/Ventas. El checkout de Ventas utiliza el cliente de stock de Catálogo.
+Mantener `ddl-auto=validate`. No iniciar las consolas aisladas junto al lanzador integrado.
+Ver la [guía de arranque integrado](../instalacion/ARRANQUE_CHECKPOINT_LOCAL.md) para disponibilidad,
 registro VENTA-SERVICE en Eureka, detención y login tras reiniciar.
 
-**El servicio conserva la lógica heredada. Solo realizar las consultas GET
-indicadas. No ejecutar POST, PUT o DELETE para simular compras.** La etapa 2
-añade JWT local y bloquea las operaciones heredadas inseguras; las comprobaciones
-negativas del bloqueo están en [SEGURIDAD_VENTAS.md](SEGURIDAD_VENTAS.md).
-La etapa 3.1 incorpora únicamente el mapping persistente de pedidos, sin API,
-checkout, pagos ni integración con Identidad/Catálogo.
-La etapa 3.2 añade exclusivamente los cuatro GET documentados en
-[CONSULTAS_PEDIDOS.md](CONSULTAS_PEDIDOS.md), con permisos en Ventas y Gateway.
-La etapa 3.2 no requirió SQL adicional; 4.6A.1 sí añade SQL 03.
-Para esta etapa de mapping se mantienen los permisos de lectura de MySQL.
-No necesita arrancar Usuarios, Inventario, Promociones, Pedidos ni Despachos
-para consultar la colección vacía.
+Para las lecturas administrativas y pruebas negativas de `/api/ventas`, consultar [seguridad de Ventas](SEGURIDAD_VENTAS.md). El checkout utiliza `POST /api/pedidos` ([contrato](CHECKOUT_HTTP.md)); las cuatro lecturas de pedidos tienen sus propios [permisos](CONSULTAS_PEDIDOS.md).
 
 ## 1. Preparar MySQL manualmente
 
@@ -130,8 +117,7 @@ manual separado; no hacen falta permisos DDL para la aplicación.
 - SQL comprueba subtotales y total final por fila. Los CAST a DECIMAL en CHECK
   evitan overflow de las operaciones intermedias; las columnas siguen BIGINT.
   Suma de detalles, composición de la cabecera, al menos una línea, autorización,
-  generación de claves, transiciones y recuperación quedan para futuros servicios.
-  No hay repositorios, endpoints, listeners ni callbacks que ejecuten estos flujos.
+  generación de claves, transiciones y recuperación corresponden a la capa de aplicación. El esquema por sí solo no ejecuta estos flujos.
 - El CHECK no sustituye validación de DTO/servicio. `validate` no demuestra que
   todas las restricciones e índices estén instalados: inspeccionar SHOW CREATE.
 
@@ -362,11 +348,7 @@ antes de adaptar el GRANT; no crear una segunda cuenta por accidente.
 
 La compilación e inspección no validan MySQL ni la serialización real de JSON.
 Después de aplicar 03 se podrá comprobar arranque Hibernate con validate y que
-la tabla sigue vacía si no se invoca el servicio. Registro, deduplicación y leases
-podrán probarse con un llamador Java autorizado después del GRANT; todavía no por
-HTTP. Resolución y coordinación con Catálogo no están implementadas.
-La versión 1 de intención solo conserva productos;
-entrega y aceptación comercial requerirán un diseño posterior antes del checkout.
+la tabla sigue vacía si no se invoca el servicio. Para probar el recorrido HTTP completo, aplicar también el esquema y los permisos del checkout descritos en esta guía y en [materialización](MATERIALIZACION_PEDIDO.md).
 
 ### 1.3 Etapa 4.6B.1 — checkout, compensación y resultado
 
@@ -433,10 +415,8 @@ Los dos VARCHAR(64) corresponden a String; checkout/hash no actualizables por JP
 No cambia @Version ni la precisión DATETIME(6) de las fechas.
 El contrato completo y los hashes se describen en SOLICITUDES_PEDIDO.md.
 
-Pendiente: ejecución real del ALTER y arranque Hibernate con validate, roundtrip
-JSON e inspección de estados/constraints. No se ejecutaron en esta tarea.
-No hay flujo de checkout, descuentos, materialización o compensación que pueda
-probarse por HTTP. Los métodos de lease existentes mantienen COMPENSACION_PENDIENTE.
+En la etapa que introdujo SQL 04 no se ejecutaron el ALTER ni las pruebas de roundtrip JSON y estados. La confirmación posterior del ALTER y de Hibernate figura al principio de esta guía.
+El flujo HTTP vigente y sus criterios de recuperación se describen en [checkout](CHECKOUT_HTTP.md). Los métodos de lease existentes mantienen COMPENSACION_PENDIENTE.
 El registro antiguo aún crea intenciones sin checkout, no aptas para descontar.
 
 ## 2. Configuración y arranque aislado
@@ -527,8 +507,7 @@ try {
 ```
 
 Esperar a que Eureka registre `VENTA-SERVICE` y Gateway descubra la instancia.
-Las rutas se conservan; las reglas de Ventas en Gateway reflejan el bloqueo
-temporal definido en SEGURIDAD_VENTAS.md.
+Gateway aplica las reglas de [seguridad de Ventas](SEGURIDAD_VENTAS.md).
 
 ## 3. Comprobaciones manuales exactas
 

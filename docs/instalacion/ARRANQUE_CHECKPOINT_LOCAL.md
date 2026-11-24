@@ -6,7 +6,7 @@
    Las bases `checkpoint_store_identidad`, `checkpoint_store_catalogo` y `checkpoint_store_ventas`
    deben existir con sus esquemas previamente preparados. La cuenta existente
    `checkpoint_app` debe tener permisos de operacion sobre Identidad y Catalogo.
-   Ventas usa `checkpoint_ventas_app` con sus permisos SELECT actuales; no ampliarlos.
+   Ventas usa `checkpoint_ventas_app`. Consultar los permisos mínimos para [registrar solicitudes](../ventas/ARRANQUE_LOCAL.md) y [materializar pedidos](../ventas/MATERIALIZACION_PEDIDO.md).
    El esquema de Catalogo incluye operaciones_stock (SQL 07 ya aplicado).
 2. Detener cualquier entorno anterior que ocupe 8761, 9096, 9091, 9094 o 9090.
 3. Hacer doble clic en `iniciar_checkpoint_local.bat`, en la raiz del backend.
@@ -20,11 +20,7 @@
 6. Volver a iniciar sesion en React/Postman: cada ejecucion genera una nueva clave
    compartida y los tokens del entorno anterior ya no sirven.
 
-El nuevo BAT invoca el PowerShell existente con `-IncluirCatalogo`. No hay
-una segunda implementacion del arranque. `iniciar_identidad.bat` e
-`iniciar_servicios.bat` no se modificaron: el modo sin parametro sigue
-iniciando solo Eureka, Identidad y Gateway con sus configuraciones anteriores.
-No iniciar ambos lanzadores a la vez.
+`iniciar_checkpoint_local.bat` es el acceso principal. Invoca `iniciar_identidad.ps1 -IncluirCatalogo` para iniciar los cinco servicios.
 
 ## Configuracion seleccionada y variables
 
@@ -62,7 +58,7 @@ El modo nuevo fija los puertos existentes y escucha en loopback (127.0.0.1).
   Se comprueba que ambos secretos sean diferentes, respetando mayusculas.
   Su valor permanece solo en memoria hasta iniciar Catalogo. Catalogo y Ventas
   heredan exactamente el mismo texto; Identidad, Eureka y Gateway no lo reciben.
-  Ventas todavia no lo utiliza: no hay emision JWT ni cliente de stock implementado.
+  Ventas firma el JWT de servicio para las llamadas de stock a Catálogo. Solo Ventas recibe `CHECKOUT_VERSION_CONDICIONES=CHECKPOINT_COMPRA_V1`.
 - Gateway se inicia despues de retirar las credenciales MySQL del entorno
    del lanzador, junto con el secreto de stock y RAWG.
    Los hijos ya iniciados conservan su propia copia.

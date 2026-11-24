@@ -15,7 +15,7 @@ Entrada: `nombre`, `email`, `password`, `role`.
 - No se reciben IDs de cuentas existentes ni se reutiliza la entidad como DTO.
 
 Se crea una nueva fila User dentro de una transacción, con BCrypt y perfil en
-la misma entidad. No hay llamadas a usuario-service. Si el correo ya existe,
+la misma entidad. Si el correo ya existe,
 incluido el de una cuenta CLIENTE, se devuelve 400 sin cambiar contraseña,
 perfil ni rol. UNIQUE y el handler existente de integridad cubren colisiones
 concurrentes; no se sobrescriben cuentas.

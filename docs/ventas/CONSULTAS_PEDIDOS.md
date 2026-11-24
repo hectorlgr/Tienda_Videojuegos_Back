@@ -27,8 +27,7 @@ parámetro de comprador en estos endpoints. Un query param `usuarioId` o
 y X-Role tampoco conceden identidad o permisos. ADMINISTRADOR tiene su listado
 global separado: no se habilita un historial propio para personal en esta etapa.
 
-POST, PUT, PATCH y DELETE están denegados en ambos namespaces para todos los
-roles, incluido ADMINISTRADOR: 403 autenticado, 401 sin Bearer válido.
+El checkout `POST /api/pedidos` requiere CLIENTE y sigue el [contrato de compra](CHECKOUT_HTTP.md). Las demás escrituras en ambos namespaces se deniegan.
 También se deniegan `/api/pedidos/usuario/{id}`, las rutas heredadas de
 estado/cancelación y el GET raíz `/api/pedidos`. OPTIONS solo permite preflight,
 no ejecuta operaciones de negocio; HEAD no se habilita como alias de GET.
@@ -125,26 +124,13 @@ Las listas son completas, sin paginación en este contrato. Para volúmenes gran
 deberá incorporarse paginación con carga de detalles por lote; no añadir Pageable
 directamente a un fetch join de colección, que puede paginar en memoria.
 
-## Gateway y conflicto heredado
+## Enrutamiento de pedidos
 
-El ejemplo YAML dirigía `/api/pedidos/**` a `pedido-service`. Se retiró esa ruta
-del ejemplo y su entrada Swagger obsoleta; los pedidos nuevos aparecen en
-`/api/ventas/v3/api-docs`, junto a la documentación de Ventas.
+`PedidoRoutesConfig` dirige `/api/pedidos` y `/api/admin/pedidos`, incluidos sus subpaths, a `lb://venta-service` sin reescritura. Swagger publica las operaciones en `/api/ventas/v3/api-docs`.
 
-`PedidoRoutesConfig` reserva ambos namespaces para `lb://venta-service`, sin
-reescritura de paths, con orden -10. Tiene prioridad sobre la ruta antigua
-de orden 0 que aún puede existir en un YAML local ignorado por Git.
-No se modificaron esos archivos privados ni el servicio heredado.
-
-SecurityConfig autoriza primero las cuatro lecturas y deniega después todo el
-resto de ambos namespaces, antes de las excepciones genéricas de Swagger.
-Se retiraron los permisos públicos de Pedidos heredados (incluidos los de VENDEDOR).
+Gateway y Ventas autorizan el checkout y las cuatro lecturas anteriores. Las demás operaciones quedan denegadas.
 La ruta literal mis-pedidos se evalúa antes de {id}; no obtiene permisos de
 administrador por coincidir con el patrón de detalle.
-
-Esta etapa no añade seguridad al puerto directo del pedido-service antiguo:
-no debe utilizarse para consultar el modelo nuevo. Mantenerlo detenido en la
-validación local de estas rutas permite detectar enrutamiento accidental.
 
 ## Matriz manual mínima de Postman
 
@@ -158,7 +144,7 @@ No iniciar servicios ni ejecutar estas solicitudes como parte de la implementaci
 | GET /api/admin/pedidos | 401 | 403 | 200 vacío | 403 |
 | GET /api/admin/pedidos/1 | 401 | 403 | 404 | 403 |
 | GET /api/pedidos/usuario/1 | 401 | 403 | 403 | 403 |
-| POST /api/pedidos | 401 | 403 | 403 | 403 |
+| POST /api/pedidos | 401 | Según solicitud e idempotencia ([checkout](CHECKOUT_HTTP.md)) | 403 | 403 |
 | PUT /api/pedidos/1/estado?nuevoEstado=COMPLETADO | 401 | 403 | 403 | 403 |
 | PUT /api/pedidos/1/cancelar | 401 | 403 | 403 | 403 |
 | POST /api/admin/pedidos | 401 | 403 | 403 | 403 |
@@ -174,8 +160,7 @@ También comprobar:
    Sin token y con esos headers: 401; VENDEDOR con esos headers: 403.
 4. Por regresión del orden de reglas modificado: POST /api/ventas con
    ADMINISTRADOR y body `{}` sigue en 403; GET /api/ventas sigue reservado a ADMINISTRADOR.
-5. En Gateway, mantener pedido-service heredado detenido: las lecturas nuevas
-   autorizadas deben responder desde Ventas, no con error de descubrimiento del antiguo.
+5. Verificar las lecturas por Gateway y por el puerto directo de Ventas con la misma cuenta.
 
 ### Pendientes que una base vacía no demuestra
 

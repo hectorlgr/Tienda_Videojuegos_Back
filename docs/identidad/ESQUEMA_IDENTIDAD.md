@@ -40,11 +40,9 @@ CREATE TABLE users (
   del arranque; Auth no crea ni altera tablas. No se ha ejecutado este SQL
   ni se ha modificado ninguna base.
 
-## Estado temporal
+## Identidad del comprador
 
-Auth ya no crea perfiles en `usuario-service`. Ventas todavía consulta ese
-servicio y no encontrará allí las nuevas cuentas. No replicar ni sincronizar
-filas como solución provisional.
+Identidad guarda la cuenta y el perfil. Ventas obtiene el identificador del comprador del JWT emitido por Identidad.
 
 ## Consulta de perfil propio
 

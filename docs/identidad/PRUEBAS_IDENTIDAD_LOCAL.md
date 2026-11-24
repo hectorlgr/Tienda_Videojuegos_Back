@@ -135,35 +135,7 @@ datasource, puerto, secreto o `ddl-auto`.
 
 ### Opcion sencilla: doble clic
 
-Ejecutar `iniciar_identidad.bat` desde el Explorador de Windows. Equivale a
-`iniciar_servicios.bat identidad`; el script sin argumentos conserva el arranque
-completo heredado y requiere su entorno configurado previamente.
-
-Requisitos: Java 21, MySQL iniciado en `127.0.0.1:3306`, esquema
-`checkpoint_store_identidad` y tabla `users` preparados, usuario `checkpoint_app`
-con permisos y configuraciones locales de Identidad/Gateway creadas desde sus
-ejemplos. El lanzador no crea ni modifica tablas. Maven necesita sus dependencias
-disponibles en cache o acceso a Internet.
-
-El lanzador:
-- Comprueba acceso TCP a MySQL y que 8761, 9096 y 9090 esten libres.
-- Pide la contrasena con entrada oculta, sin guardarla.
-- Establece DB_URL y DB_USERNAME para Identidad y genera una clave JWT aleatoria
-  nueva por arranque, compartida por Identidad y Gateway mediante entorno heredado.
-- Mantiene `BOOTSTRAP_ADMIN_ENABLED=false` y no inicia modulos heredados.
-- Espera Eureka, HTTP de Identidad y su registro UP; despues inicia Gateway
-  y comprueba su ruta de documentacion hacia Identidad (hasta 180 s por espera).
-- Ejecuta Maven con `-Dmaven.test.skip=true`, sin pruebas, en ventanas independientes.
-
-No escribe secretos en archivos, argumentos ni variables permanentes. El acceso
-TCP no valida la contrasena: esa validacion y la del esquema ocurren al arrancar
-Identidad. Ante un error, revisar la terminal correspondiente y detener los
-procesos abiertos antes de reintentar. Cada arranque cambia JWT_SECRET: volver
-a hacer login en Postman. No activar logs de depuracion que vuelquen el entorno.
-
-**Detener:** Ctrl+C primero en Gateway, luego Identidad y por ultimo Eureka;
-confirmar la finalizacion del lote si cmd lo solicita y cerrar las ventanas.
-Cerrar solo el lanzador no detiene los servicios.
+Ejecutar `iniciar_checkpoint_local.bat` desde la raíz del backend. La [guía de arranque integrado](../instalacion/ARRANQUE_CHECKPOINT_LOCAL.md) detalla requisitos MySQL, credenciales, orden de inicio, comprobaciones de disponibilidad y detención. Tras reiniciar, hacer login de nuevo en Postman.
 
 ### Alternativa manual desde una misma consola
 
@@ -196,12 +168,10 @@ Start-Process powershell.exe -WorkingDirectory "$repo\api-gateway" -ArgumentList
 
 Esperar registro `API-GATEWAY`, puerto 9090, y refresco del catálogo Eureka.
 Todos escuchan solo en loopback. Los clientes publican 127.0.0.1 en Eureka.
-No usar `build-all.bat`, `clean-all.bat` ni `iniciar_servicios.bat`: para esta
-prueba bastan los tres comandos Maven anteriores.
+Los tres comandos anteriores corresponden a la prueba aislada de Identidad.
 
 El Gateway usa rutas explícitas; el locator automático está deshabilitado para
-evitar aliases por nombre de servicio. Todas las rutas heredadas se conservan,
-pero sus servicios no necesitan arrancarse para probar Identidad.
+evitar aliases por nombre de servicio.
 
 ## Pruebas con Postman o Swagger
 
@@ -286,7 +256,7 @@ No seleccionar ni copiar `password`; no hacen falta consultas sobre hashes.
 - 503 del Gateway: comprobar IDENTIDAD-SERVICE en Eureka y esperar descubrimiento.
 - 401 con token recién emitido: comprobar mismo JWT_SECRET en ambos procesos
   sin imprimirlo, URL de login utilizada y reloj del equipo.
-- Ventas sigue dependiendo de usuario-service: estas pruebas no validan compras.
+- Estas pruebas de Identidad no validan compras.
 - Hay resultados HTTP y persistencia MySQL confirmados por el desarrollador
   en la sección de resultados. El recorrido por Gateway y el descubrimiento
   Eureka no cuentan con una confirmación específica en el informe recibido.

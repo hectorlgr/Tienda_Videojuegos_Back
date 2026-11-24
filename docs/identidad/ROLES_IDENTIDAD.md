@@ -22,49 +22,19 @@ automáticamente ni se actualizan cuentas de ferretería.
 | POST `/auth/login`, `/auth/register/cliente` | Público, contrato intacto |
 | GET `/api/productos`, `/api/productos/{id}` | Público |
 | POST productos, PUT/DELETE producto por ID | ADMINISTRADOR |
-| Inventario y CRUD heredado `/api/usuarios/**` | ADMINISTRADOR |
+| POST `/api/v1/admin/usuarios` | ADMINISTRADOR |
 | GET/PATCH `/api/v1/usuarios/me` | Autenticado con rol válido; Auth aplica userId propio |
-| GET `/api/pedidos/usuario/{idUsuario}` | ADMINISTRADOR o VENDEDOR |
-| POST `/api/pedidos`, PUT `/{id}/estado`, PUT `/{id}/cancelar` | ADMINISTRADOR |
-| Ventas, Despachos y Promociones heredados | ADMINISTRADOR provisionalmente |
-| Rutas restantes, incluyendo Reseñas/Soporte retirados | Denegadas |
+| POST `/api/pedidos` y GET `/api/pedidos/mis-pedidos` | CLIENTE |
+| GET `/api/pedidos/{id}` | CLIENTE para un pedido propio o ADMINISTRADOR |
+| GET `/api/admin/pedidos` y `/api/admin/pedidos/{id}` | ADMINISTRADOR |
+| Lecturas autorizadas de `/api/ventas` | ADMINISTRADOR |
+| Rutas sin autorización explícita | Denegadas |
 
 Las excepciones existentes de OPTIONS y documentación se conservan.
 VENDEDOR no obtiene permisos de escritura ni administración de usuarios,
-inventario, productos u órdenes. No se han creado administradores ni vendedores.
+productos ni pedidos.
 
-## Bloqueo: compras y pedidos propios del CLIENTE
-
-No basta con cambiar nombres de roles para habilitarlos de forma segura:
-
-- `VentaController.procesarVenta()` obtiene `usuarioId` del JSON.
-- GET de ventas por ID, usuario, correo, rango o listado no verifica propietario.
-- `PedidoController.obtenerPorUsuario()` recibe el ID de la URL.
-- `PedidoService.cancelarPedido()` comprueba estado, pero no propietario autenticado.
-- Usuarios heredado no implementa `/api/usuarios/me`; se elimina su excepción
-  autenticada. El perfil propio real sigue en `/api/v1/usuarios/me`.
-
-Por eso CLIENTE no accede temporalmente por Gateway a Ventas/Pedidos heredados,
-incluida la compra. Es una restricción explícita pendiente de resolver, no una
-implementación completa del permiso final de compras autenticadas y pedidos propios.
-No se compara el ID de Auth con el ID independiente de Usuarios como atajo.
-
-El acceso no administrativo a Despachos/Promociones y las consultas de Ventas
-por VENDEDOR no tienen un contrato acordado aquí: no se conceden permisos nuevos.
-Se conserva únicamente acceso administrativo provisional donde ya existía.
-
-## Dependencias y seguimiento
-
-No se encontraron comparaciones operativas de ADMIN/OPERADOR en los demás
-microservicios. Sí se requiere adaptar posteriormente Ventas y Pedidos para
-usar la identidad validada y comprobar propiedad. Despachos también expone
-consultas por pedido/estado y necesita un contrato de acceso propio definido.
-Los accesos directos a servicios heredados y sus llamadas internas siguen
-sin la protección local equivalente a Auth: el Gateway no corrige ese riesgo.
-
-La entidad User no se modifica por restricción de alcance; su comentario
-histórico menciona ADMIN/OPERADOR, pero no impone ni valida esos valores.
-No se cambian rutas de descubrimiento, tablas ni otros servicios.
+El checkout obtiene el comprador del JWT. Ventas comprueba la propiedad del pedido para las consultas de CLIENTE. Véanse [checkout](../ventas/CHECKOUT_HTTP.md), [consultas de pedidos](../ventas/CONSULTAS_PEDIDOS.md) y [lecturas administrativas de Ventas](../ventas/SEGURIDAD_VENTAS.md).
 
 ## Verificación
 
@@ -75,4 +45,4 @@ se conserven claim `role`, prefijo `ROLE_` y registro exclusivo CLIENTE.
 Las validaciones HTTP anteriores de Identidad no prueban esta nueva matriz.
 Pendientes: repetir registro/login/perfil y catálogo anónimo; comprobar con
 cuentas autorizadas futuras los permisos ADMINISTRADOR/VENDEDOR y sus rechazos.
-No hay todavía cuentas de esos roles ni afirmación de validación HTTP de ellos.
+Las comprobaciones HTTP por rol siguen pendientes en esta matriz.

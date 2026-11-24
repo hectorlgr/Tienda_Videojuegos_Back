@@ -9,7 +9,7 @@ schedulers ni endpoints administrativos de recuperación.
 Bean `CoordinadorPedidoService`, sin endpoints ni tareas automáticas:
 
 - `comprar(compradorId, claveIdempotencia, items, entrada)`: identidad confiable
-  aportada por el futuro controlador JWT, nunca tomada de un body arbitrario.
+  aportada por el controlador de checkout a partir del JWT validado, nunca tomada de un body arbitrario.
 - `continuar(solicitudId)`: recuperación técnica explícita, únicamente para código
   interno autorizado. No es una consulta pública por ID ni autoriza compradores.
 

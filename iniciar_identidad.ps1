@@ -1,4 +1,4 @@
-# Invocado por iniciar_servicios.bat identidad. Compatible con Windows PowerShell 5.1.
+# Invocado por iniciar_checkpoint_local.bat. Compatible con Windows PowerShell 5.1.
 param([switch] $IncluirCatalogo)
 
 $ErrorActionPreference = 'Stop'

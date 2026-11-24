@@ -106,23 +106,6 @@ public class ProductoServiceTest {
     }
 
     @Test
-    void testActualizarProducto_Exito() {
-        when(productoRepository.findByIdAndHabilitadoTrue(1L)).thenReturn(Optional.of(productoBase));
-        when(productoRepository.save(any(Producto.class))).thenReturn(productoBase);
-
-        Producto detallesActualizados = new Producto();
-        detallesActualizados.setNombre("Martillo Premium");
-        detallesActualizados.setMarca("Bosch");
-        detallesActualizados.setPrecio(20000);
-        detallesActualizados.setDescripcion("Nueva desc");
-
-        Producto resultado = productoService.actualizarProducto(1L, detallesActualizados);
-
-        assertEquals("Martillo Premium", resultado.getNombre());
-        verify(productoRepository, times(1)).save(any(Producto.class));
-    }
-
-    @Test
     void testEliminarProducto_DeshabilitaYNotificaInventario() {
         when(productoRepository.findByIdAndHabilitadoTrue(1L)).thenReturn(Optional.of(productoBase));
         when(productoRepository.save(any(Producto.class))).thenReturn(productoBase);

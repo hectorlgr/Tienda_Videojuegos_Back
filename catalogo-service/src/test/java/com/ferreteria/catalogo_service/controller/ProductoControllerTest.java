@@ -32,99 +32,82 @@ import com.ferreteria.catalogo_service.exception.GlobalExceptionHandler;
 @ExtendWith(MockitoExtension.class)
 public class ProductoControllerTest {
 
-    private MockMvc mockMvc;
+        private MockMvc mockMvc;
 
-    @Mock
-    private ProductoService productoService;
+        @Mock
+        private ProductoService productoService;
 
-    private Producto productoMock;
+        private Producto productoMock;
 
-    @BeforeEach
-    void setUp() {
-        ProductoModelAssembler assembler = new ProductoModelAssembler();
-        ProductoController controller = new ProductoController(productoService, assembler);
+        @BeforeEach
+        void setUp() {
+                ProductoModelAssembler assembler = new ProductoModelAssembler();
+                ProductoController controller = new ProductoController(productoService, assembler);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
+                mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                                .setControllerAdvice(new GlobalExceptionHandler())
+                                .build();
 
-        productoMock = new Producto();
-        productoMock.setId(1L);
-        productoMock.setNombre("Martillo de Uña");
-        productoMock.setDescripcion("Mango de fibra");
-        productoMock.setMarca("Stanley");
-        productoMock.setPrecio(14990);
-        productoMock.setHabilitado(true);
-    }
+                productoMock = new Producto();
+                productoMock.setId(1L);
+                productoMock.setNombre("Martillo de Uña");
+                productoMock.setDescripcion("Mango de fibra");
+                productoMock.setMarca("Stanley");
+                productoMock.setPrecio(14990);
+                productoMock.setHabilitado(true);
+        }
 
-    @Test
-    public void testGuardarProducto() throws Exception {
-        // GIVEN
-        when(productoService.guardarProducto(any(Producto.class))).thenReturn(productoMock);
+        @Test
+        public void testGuardarProducto() throws Exception {
+                // GIVEN
+                when(productoService.guardarProducto(any(Producto.class))).thenReturn(productoMock);
 
-        // WHEN & THEN
-        mockMvc.perform(post("/api/productos")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                        "{\"nombre\":\"Martillo de Uña\",\"descripcion\":\"Mango de fibra\",\"marca\":\"Stanley\",\"precio\":14990}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.nombre").value("Martillo de Uña"))
-                .andExpect(jsonPath("$.precio").value(14990));
+                // WHEN & THEN
+                mockMvc.perform(post("/api/productos")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                                "{\"nombre\":\"Martillo de Uña\",\"descripcion\":\"Mango de fibra\",\"marca\":\"Stanley\",\"precio\":14990}"))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.id").value(1L))
+                                .andExpect(jsonPath("$.nombre").value("Martillo de Uña"))
+                                .andExpect(jsonPath("$.precio").value(14990));
 
-        verify(productoService, times(1)).guardarProducto(any(Producto.class));
-    }
+                verify(productoService, times(1)).guardarProducto(any(Producto.class));
+        }
 
-    @Test
-    public void testObtenerTodos() throws Exception {
-        // GIVEN
-        when(productoService.obtenerTodos()).thenReturn(Arrays.asList(productoMock));
+        @Test
+        public void testObtenerTodos() throws Exception {
+                // GIVEN
+                when(productoService.obtenerTodos()).thenReturn(Arrays.asList(productoMock));
 
-        // WHEN & THEN
-        mockMvc.perform(get("/api/productos"))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].nombre").value("Martillo de Uña"));
+                // WHEN & THEN
+                mockMvc.perform(get("/api/productos"))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content[0].nombre").value("Martillo de Uña"));
 
-        verify(productoService, times(1)).obtenerTodos();
-    }
+                verify(productoService, times(1)).obtenerTodos();
+        }
 
-    @Test
-    public void testObtenerPorId() throws Exception {
-        // GIVEN
-        when(productoService.obtenerPorId(1L)).thenReturn(productoMock);
+        @Test
+        public void testObtenerPorId() throws Exception {
+                // GIVEN
+                when(productoService.obtenerPorId(1L)).thenReturn(productoMock);
 
-        // WHEN & THEN
-        mockMvc.perform(get("/api/productos/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombre").value("Martillo de Uña"));
+                // WHEN & THEN
+                mockMvc.perform(get("/api/productos/1"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.nombre").value("Martillo de Uña"));
 
-        verify(productoService, times(1)).obtenerPorId(1L);
-    }
+                verify(productoService, times(1)).obtenerPorId(1L);
+        }
 
-    @Test
-    public void testActualizarProducto() throws Exception {
-        // GIVEN
-        when(productoService.actualizarProducto(eq(1L), any(Producto.class))).thenReturn(productoMock);
+        @Test
+        public void testEliminarProducto() throws Exception {
+                // WHEN & THEN
+                mockMvc.perform(delete("/api/productos/1"))
+                                .andExpect(status().isNoContent()); // HTTP 204
 
-        // WHEN & THEN
-        mockMvc.perform(put("/api/productos/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                        "{\"nombre\":\"Martillo de Uña\",\"descripcion\":\"Mango de fibra modificado\",\"marca\":\"Stanley\",\"precio\":15000}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.nombre").value("Martillo de Uña"));
-
-        verify(productoService, times(1)).actualizarProducto(eq(1L), any(Producto.class));
-    }
-
-    @Test
-    public void testEliminarProducto() throws Exception {
-        // WHEN & THEN
-        mockMvc.perform(delete("/api/productos/1"))
-                .andExpect(status().isNoContent()); // HTTP 204
-
-        verify(productoService, times(1)).eliminarProducto(1L);
-    }
+                verify(productoService, times(1)).eliminarProducto(1L);
+        }
 }

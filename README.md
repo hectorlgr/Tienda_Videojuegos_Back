@@ -1,111 +1,50 @@
-# CheckPoint Store Backend — migración estructural
+# CheckPoint Store · Backend
 
-Base derivada del backend de ferretería. Esta etapa retira Reseñas y Soporte;
-conserva Promociones temporalmente porque Ventas aún utiliza sus cupones.
-No se han realizado fusiones ni se considera el backend completamente funcional.
-El detalle de dependencias y pendientes está en [MIGRACION_ESTRUCTURAL.md](MIGRACION_ESTRUCTURAL.md).
+CheckPoint Store es una tienda académica de videojuegos, consolas, accesorios y figuras. El backend permite al equipo administrar el catálogo y las existencias, y al cliente registrarse, comprar y consultar sus pedidos. El frontend se mantiene en un repositorio independiente.
 
-## Descripción del Proyecto
+## Arquitectura y puertos
 
-El código heredado utiliza **Spring Boot** y **Java 21** y se adaptará gradualmente a CheckPoint Store.
+El frontend envía sus solicitudes al Gateway. Eureka permite al Gateway localizar los servicios registrados y a Ventas localizar Catálogo durante el checkout.
 
-La estructura actual conserva catálogo, inventario, ventas, pedidos, despachos,
-usuarios, autenticación y promociones heredadas. El destino acordado comprende
-Identidad, Catálogo y Ventas, manteniendo provisionalmente Gateway y Eureka.
+| Módulo              | Puerto local | Responsabilidad                                                     | Spring Boot | Spring Cloud | Maven Wrapper¹ |
+| ------------------- | -----------: | ------------------------------------------------------------------- | ----------- | ------------ | -------------- |
+| `eureka-server`     |         8761 | Registro y descubrimiento de instancias                             | 4.0.6       | 2025.1.1     | 3.9.16         |
+| `identidad-service` |         9096 | Registro, login, perfil y roles de acceso                           | 4.0.5       | 2025.1.1     | 3.9.15         |
+| `catalogo-service`  |         9091 | Productos, imágenes, ofertas y operaciones de stock                 | 4.0.5       | 2025.1.1     | 3.9.14         |
+| `venta-service`     |         9094 | Checkout, consultas de pedidos y lecturas administrativas de ventas | 4.0.5       | 2025.1.1     | 3.9.14         |
+| `api-gateway`       |         9090 | Entrada HTTP, autorización, CORS y documentación OpenAPI            | 3.3.5       | 2023.0.3     | 3.9.14         |
 
-A nivel técnico, la solución implementa:
+¹ Versión de Maven que descarga el wrapper de cada módulo. Los cinco utilizan Java 21. Los servicios de negocio persisten sus datos en MySQL 8.4 (puerto local 3306). Spring Security valida los JWT de acceso; las operaciones internas de stock entre Ventas y Catálogo utilizan un JWT de servicio con un secreto distinto.
 
-- **Patrón de Arquitectura CSR:** Clara separación de capas en `Controller` (enrutamiento REST), `Service` (lógica de negocio) y `Repository` (acceso a datos MySQL).
-- **Comunicación REST:** Integración entre microservicios utilizando `WebClient` con manejo de excepciones y validación de reglas de dominio cruzadas.
-- **Pruebas heredadas:** JUnit, Mockito y Jacoco; la cobertura no se ha verificado en esta etapa.
-- **Seguridad y Enrutamiento:** Centralización de las peticiones a través de un **API Gateway** dinámico y descubrimiento de servicios gestionado por **Netflix Eureka**.
-- **Gestión de Datos y Trazabilidad:** Inicialización de datos mixta (combinando `Liquibase` y `DataLoaders`) y centralización de logs del sistema estructurados mediante volúmenes.
+## Funcionalidades principales
 
----
+- **Identidad.** El cliente puede crear su cuenta, iniciar sesión y mantener su perfil. El alta de personal requiere un administrador.
+- **Catálogo.** El público consulta los productos habilitados. El administrador gestiona fichas, precios en CLP, stock e imágenes. RAWG es un asistente opcional para crear videojuegos: permite buscar un título y aprovechar sus metadatos; el administrador completa los datos comerciales. La integración conserva el idioma de origen y no realiza traducción automática.
+- **Ventas y pedidos.** El checkout autenticado (`POST /api/pedidos`) obtiene el comprador del JWT, valida las condiciones de compra y coordina el stock con Catálogo. Una clave de idempotencia permite reintentar la misma solicitud. El cliente consulta sus pedidos y el administrador dispone de consultas globales de pedidos y ventas.
+
+## Preparación y arranque local
+
+1. Preparar Windows con Git, JDK 21, Windows PowerShell 5.1 y MySQL Server 8.4. El primer uso de los wrappers requiere acceso a las descargas de Maven o una caché previamente preparada.
+2. Crear los tres esquemas y las cuentas de aplicación, aplicar los scripts manuales correspondientes y preparar el primer administrador según las guías. Hibernate valida el esquema al arrancar. [Instalación desde cero](docs/instalacion/INSTALACION_LOCAL_DESDE_CERO.md) · [Esquema y permisos de Ventas](docs/ventas/ARRANQUE_LOCAL.md)
+3. Con MySQL iniciado, abrir [iniciar_checkpoint_local.bat](iniciar_checkpoint_local.bat). Introducir las contraseñas de `checkpoint_app` y `checkpoint_ventas_app` en sus respectivos campos ocultos. La clave RAWG es opcional. El lanzador inicia los servicios en el orden de la tabla y comprueba su disponibilidad. [Guía de arranque y detención](docs/instalacion/ARRANQUE_CHECKPOINT_LOCAL.md)
+4. Esperar el mensaje **Entorno disponible**. Abrir [Swagger UI del Gateway](http://localhost:9090/doc/swagger-ui.html) para explorar Identidad, Catálogo y Ventas. Las operaciones de pedidos aparecen en Ventas. Tras reiniciar el entorno, volver a iniciar sesión para obtener un token válido.
+
+## Índice técnico
+
+| Área        | Documentación                                                                                                                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Instalación | [Requisitos y preparación](docs/instalacion/INSTALACION_LOCAL_DESDE_CERO.md) · [Arranque integrado](docs/instalacion/ARRANQUE_CHECKPOINT_LOCAL.md)                                                |
+| Gateway     | [CORS para el frontend local](docs/gateway/CORS_FRONTEND_LOCAL.md)                                                                                                                                |
+| Identidad   | [Roles y permisos](docs/identidad/ROLES_IDENTIDAD.md) · [Primer administrador](docs/identidad/INICIALIZAR_ADMIN_LOCAL.md)                                                                         |
+| Catálogo    | [Contrato con el frontend](docs/catalogo/CONTRATO_FRONTEND_CATALOGO.md) · [Importación con RAWG](docs/catalogo/IMPORTACION_RAWG_POSTMAN.md)                                                       |
+| Ventas      | [Contrato de checkout](docs/ventas/CHECKOUT_HTTP.md) · [Consultas de pedidos](docs/ventas/CONSULTAS_PEDIDOS.md) · [Coordinación, recuperación y compensación](docs/ventas/COORDINADOR_PEDIDOS.md) |
+
+## Alcance del MVP académico
+
+El entorno documentado se ejecuta en Windows con MySQL e imágenes almacenadas localmente. Un pedido registrado no acredita pago ni despacho. Si el checkout devuelve HTTP 202, la solicitud sigue pendiente; el cliente debe seguir el procedimiento de reintento del contrato de checkout. La aceptación en un equipo limpio y los casos de integración y concurrencia señalados como pendientes en las guías requieren validación en ejecución.
 
 ## Integrantes
 
-- Héctor Gutierrez
-- Pablo Catalan
-
----
-
-## Lista de Microservicios
-
-El ecosistema está compuesto por los siguientes servicios:
-
-1. **`eureka-server`** (Puerto: 8761): Servidor de descubrimiento de Spring Cloud.
-2. **`api-gateway`** (Puerto: 9090): Punto único de entrada, enrutamiento y documentación centralizada.
-3. **`catalogo-service`**: Gestión de información de los productos de la ferretería.
-4. **`venta-service`**: Orquestación de compras, cálculos de totales y enlace con otros dominios.
-5. **`usuario-service`**: Administración de perfiles de clientes.
-6. **`pedido-service`**: Gestión logística de los pedidos generados.
-7. **`promocion-service`**: Temporal; Ventas consulta la validación de cupones.
-8. **`inventario-service`**: Descuento y adición de stock físico.
-9. **`despacho-service`**: Gestión de envíos y cálculo de fletes.
-10. **`identidad-service`**: Cuentas, perfiles, roles y autenticación con JWT HS256. Conserva los paquetes Java `auth_service` y las rutas externas existentes.
-
----
-
-## Rutas del API Gateway
-
-Rutas heredadas conservadas en el ejemplo del Gateway (`http://localhost:9090`).
-La configuración activa aún falta; esta tabla no representa la API final de React:
-
-| Dominio / Servicio | Ruta Expuesta en Gateway | URL Base Interna          |
-| ------------------ | ------------------------ | ------------------------- |
-| **Catálogo**       | `/api/productos/**`      | `lb://catalogo-service`   |
-| **Ventas**         | `/api/ventas/**`         | `lb://venta-service`      |
-| **Usuarios**       | `/api/usuarios/**`       | `lb://usuario-service`    |
-| **Pedidos**        | `/api/pedidos/**`        | `lb://pedido-service`     |
-| **Promociones**    | `/api/promociones/**`    | `lb://promocion-service`  |
-| **Inventario**     | `/api/inventario/**`     | `lb://inventario-service` |
-| **Despachos**      | `/api/despachos/**`      | `lb://despacho-service`   |
-| **Autenticación**  | `/auth/**`               | `lb://identidad-service`  |
-| **Perfil propio** | `/api/v1/usuarios/me`    | `lb://identidad-service`  |
-| **Alta de personal** | `/api/v1/admin/usuarios` | `lb://identidad-service` |
-
----
-
-## Documentación Interoperable (Swagger / OpenAPI)
-
-La documentación interactiva de toda la plataforma está centralizada. No es necesario visitar la documentación de cada microservicio por separado.
-
-- **URL de Swagger UI:** [http://localhost:9090/doc/swagger-ui.html](http://localhost:9090/doc/swagger-ui.html)
-
----
-
-## Instrucciones de Ejecución
-
-### Prerrequisitos
-
-- **Java Development Kit (JDK):** Versión 21.
-- **Maven:** Instalado en el sistema.
-- **Docker y Docker Compose:** Instalados en el sistema (opción recomendada y automatizada).
-
-### Opción 1: Despliegue Automatizado con Docker
-
-Cada módulo conserva su `Dockerfile`. `docker-compose.yml` fue excluido de la
-copia por contener una clave fija y no se reconstruye en esta etapa.
-No hay un despliegue Docker preparado.
-
-Los scripts heredados se conservan, sin ejecutarlos. `build-all.bat` contiene
-eliminación global de contenedores e imágenes; no debe utilizarse como procedimiento
-de validación de esta migración.
-
-### Opción 2: Ejecución Manual Local
-
-El script `iniciar_servicios.bat` refleja los módulos conservados, pero no se ha
-ejecutado. Antes de iniciar servicios deben prepararse las configuraciones activas
-de Auth y Gateway y conexiones a bases propias. Véase [COPIA_BASE.md](COPIA_BASE.md).
-
-### Pruebas Unitarias y Cobertura (Jacoco)
-
-Para verificar la estabilidad de las reglas de negocio y asegurar el cumplimiento de la cobertura obligatoria (superior o igual al 80%), puedes ejecutar el ciclo de pruebas de Maven en cualquiera de los módulos:
-
-```bash
-mvnw clean test
-
-```
-
-Los reportes de cobertura interactivos de Jacoco se generarán automáticamente y se pueden consultar abriendo el archivo `target/site/jacoco/index.html` en el navegador web de tu preferencia.
+Vicente Briones
+Héctor Gutierrez
+Luisana Rivero

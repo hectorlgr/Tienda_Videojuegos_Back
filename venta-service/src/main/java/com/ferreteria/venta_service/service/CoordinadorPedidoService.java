@@ -107,10 +107,10 @@ public class CoordinadorPedidoService {
 
     private Resultado continuarCompensacion(SolicitudPedidoInterna s, ResultadoStock r) {
         return switch (r.tipo()) {
-            case REVERTIDA, CANCELADA, RECHAZADA ->
+            case REVERTIDA, CANCELADA ->
                     terminal(solicitudes.confirmarCierreRemoto(s.id(), s.tokenReclamacion(), r));
             case APLICADA, PENDIENTE, INEXISTENTE -> revertir(s);
-            case CONFLICTO_IDEMPOTENCIA, CONFLICTO_REVERSION, AUTENTICACION_INTERNA, SOLICITUD_INVALIDA ->
+            case RECHAZADA, CONFLICTO_IDEMPOTENCIA, CONFLICTO_REVERSION, AUTENTICACION_INTERNA, SOLICITUD_INVALIDA ->
                     pendiente(s, Estado.REVISION_REQUERIDA, r.tipo().name());
             default -> pendiente(s, Estado.RECUPERABLE, r.tipo().name());
         };
@@ -120,9 +120,9 @@ public class CoordinadorPedidoService {
         var autorizada = solicitudes.autorizarReversion(s.id(), s.tokenReclamacion(), LEASE);
         var r = remoto(autorizada, () -> stock.revertir(autorizada.operacionStockId(), autorizada.solicitud()));
         return switch (r.tipo()) {
-            case REVERTIDA, CANCELADA, RECHAZADA ->
+            case REVERTIDA, CANCELADA ->
                     terminal(solicitudes.confirmarCierreRemoto(s.id(), s.tokenReclamacion(), r));
-            case CONFLICTO_REVERSION, CONFLICTO_IDEMPOTENCIA, AUTENTICACION_INTERNA, SOLICITUD_INVALIDA ->
+            case RECHAZADA, CONFLICTO_REVERSION, CONFLICTO_IDEMPOTENCIA, AUTENTICACION_INTERNA, SOLICITUD_INVALIDA ->
                     pendiente(s, Estado.REVISION_REQUERIDA, r.tipo().name());
             default -> pendiente(s, Estado.RECUPERABLE, r.tipo().name());
         };

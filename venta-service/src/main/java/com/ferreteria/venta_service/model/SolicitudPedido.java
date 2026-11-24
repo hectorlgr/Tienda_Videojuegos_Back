@@ -246,10 +246,11 @@ public class SolicitudPedido {
         DatosCheckoutSolicitud.TipoResultado tipo;
         String codigo;
         if (operacion.estado() == ContratoStock.Estado.RECHAZADA) {
+            if (estado == EstadoSolicitudPedido.COMPENSACION_PENDIENTE || codigoCompensacion != null) {
+                throw new IllegalStateException("Rechazo remoto incompatible con la decisión de compensar");
+            }
             tipo = DatosCheckoutSolicitud.TipoResultado.RECHAZO_DEFINITIVO;
             codigo = operacion.codigo();
-            // RECHAZADA es terminal sin descuento. SQL 04 exige motivo NULL.
-            codigoCompensacion = null;
         } else {
             if (estado != EstadoSolicitudPedido.COMPENSACION_PENDIENTE || codigoCompensacion == null) {
                 throw new IllegalStateException("Cierre remoto sin decisión durable de compensación");

@@ -1,55 +1,17 @@
 @echo off
-echo Limpiando carpetas target de todos los microservicios...
+setlocal
 
-echo Limpiando eureka-server...
-cd eureka-server
-call .\mvnw clean
-cd ..
+for %%S in (eureka-server api-gateway identidad-service catalogo-service venta-service) do (
+    echo Limpiando %%S...
+    pushd "%~dp0%%S" || exit /b 1
+    call .\mvnw.cmd clean
+    if errorlevel 1 (
+        popd
+        exit /b 1
+    )
+    popd
+)
 
-echo Limpiando api-gateway...
-cd api-gateway
-call .\mvnw clean
-cd ..
-
-echo Limpiando identidad-service...
-cd identidad-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando usuario-service...
-cd usuario-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando catalogo-service...
-cd catalogo-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando venta-service...
-cd venta-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando pedido-service...
-cd pedido-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando despacho-service...
-cd despacho-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando inventario-service...
-cd inventario-service
-call .\mvnw clean
-cd ..
-
-echo Limpiando promocion-service...
-cd promocion-service
-call .\mvnw clean
-cd ..
-
-echo ¡Limpieza completada con exito!
+echo Limpieza completada.
 pause
+exit /b 0

@@ -1,57 +1,17 @@
 @echo off
-echo Limpiando contenedores e imagenes anteriores...
-FOR /f %%i IN ('docker ps -aq') DO docker rm -f %%i
-FOR /f %%i IN ('docker images -aq') DO docker rmi -f %%i
+setlocal
 
-echo Construyendo eureka-server...
-cd eureka-server
-call .\mvnw clean package -DskipTests
-cd ..
+for %%S in (eureka-server api-gateway identidad-service catalogo-service venta-service) do (
+    echo Construyendo %%S...
+    pushd "%~dp0%%S" || exit /b 1
+    call .\mvnw.cmd clean package -DskipTests
+    if errorlevel 1 (
+        popd
+        exit /b 1
+    )
+    popd
+)
 
-echo Construyendo api-gateway...
-cd api-gateway
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo identidad-service...
-cd identidad-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo usuario-service...
-cd usuario-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo catalogo-service...
-cd catalogo-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo venta-service...
-cd venta-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo pedido-service...
-cd pedido-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo despacho-service...
-cd despacho-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo inventario-service...
-cd inventario-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo Construyendo promocion-service...
-cd promocion-service
-call .\mvnw clean package -DskipTests
-cd ..
-
-echo ¡Todas las compilaciones terminadas con exito!
+echo Compilacion completada.
 pause
+exit /b 0

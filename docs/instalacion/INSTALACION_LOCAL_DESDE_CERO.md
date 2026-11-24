@@ -146,7 +146,7 @@ Ejecutar con la cuenta administradora de MySQL; todavía no iniciar Java.
 1. Seleccionar `checkpoint_store_identidad`:
    `USE checkpoint_store_identidad;`.
 2. Ejecutar el bloque **CREATE TABLE users** de
-   `identidad-service/ESQUEMA_IDENTIDAD.md` completo. Está en Markdown, no
+   `../identidad/ESQUEMA_IDENTIDAD.md` completo. Está en Markdown, no
    existe un `.sql` independiente de Identidad. No ejecutar el archivo Markdown
    entero como SQL.
 3. Ejecutar completo
@@ -171,7 +171,7 @@ Ejecutar con la cuenta administradora de MySQL; todavía no iniciar Java.
 
 El aviso «FASE FUTURA: NO aplicar con los DTO/endpoints actuales» de 04 es
 histórico. Los DTO actuales y ProductoService ya exigen el formulario completo;
-la actualización al inicio de `sql/README_FORMULARIO_PRODUCTO.md` lo confirma.
+la actualización al inicio de `../../catalogo-service/sql/README_FORMULARIO_PRODUCTO.md` lo confirma.
 No hay que esperar otra implementación para ejecutar 04 sobre una base vacía.
 
 **No ejecutar después del CREATE nuevo:**
@@ -315,7 +315,7 @@ WHERE role = 'ADMINISTRADOR';
 La contraseña debe ser propia, no vacía, y no exceder 72 bytes UTF-8.
 Email válido y nombre son obligatorios (hasta 255 caracteres). No hay
 contraseña predeterminada ni creación de ADMINISTRADOR por registro público.
-Más detalles: `identidad-service/INICIALIZAR_ADMIN_LOCAL.md`.
+Más detalles: `../identidad/INICIALIZAR_ADMIN_LOCAL.md`.
 
 ## 5. Arranque normal con doble clic
 
@@ -370,7 +370,7 @@ Las imágenes permanecen en disco al detener servicios; MySQL guarda sus URLs.
 
 Base: **http://localhost:9090**. No guardar contraseñas ni tokens en colecciones
 compartidas/exportadas. Los cuerpos detallados y cuatro ejemplos de producto
-están en **catalogo-service/CONTRATO_FRONTEND_CATALOGO.md**.
+están en **../catalogo/CONTRATO_FRONTEND_CATALOGO.md**.
 
 ### Sin administrador
 

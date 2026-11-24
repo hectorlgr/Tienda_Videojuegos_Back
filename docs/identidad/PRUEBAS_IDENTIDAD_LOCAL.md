@@ -56,7 +56,7 @@ detenerse y confirmar su origen; no reutilizar ninguna base de ferretería.
 Un administrador de MySQL deberá:
 
 1. Crear la base con `utf8mb4` y `utf8mb4_unicode_ci`.
-2. Crear la tabla `users` utilizando el DDL de `identidad-service/ESQUEMA_IDENTIDAD.md`.
+2. Crear la tabla `users` utilizando el DDL de `ESQUEMA_IDENTIDAD.md`.
 3. Crear en Workbench > Administration > Users and Privileges un usuario local
    `checkpoint_app` con contraseña propia, aleatoria y no vacía. Restringir el
    host al computador local, no `%`. Confirmar el host de cuenta que corresponda

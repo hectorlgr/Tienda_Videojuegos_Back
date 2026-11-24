@@ -57,7 +57,7 @@ La aprobación de la tarifa V1 sigue vigente; este es el identificador de acepta
 
 ### Configuración de despliegue revisada
 
-`src/main/resources/application.properties` está ignorado por Git mediante
+`../../venta-service/src/main/resources/application.properties` está ignorado por Git mediante
 `application*.properties`. El archivo local contiene las propiedades siguientes,
 pero no forma parte de los cambios versionables. Reproducirlas en la configuración
 externa del entorno al desplegar:

@@ -114,7 +114,7 @@ conexion y Hibernate valida su esquema al arrancar.
 Las comprobaciones HTTP usan solo GET de disponibilidad/documentacion, no
 login ni creacion de productos. Tener OpenAPI disponible y registros UP no
 demuestra autorizacion JWT: ejecutar despues la matriz de
-`catalogo-service/SEGURIDAD_CATALOGO.md` en 9091 y 9090.
+`../catalogo/SEGURIDAD_CATALOGO.md` en 9091 y 9090.
 En http://127.0.0.1:8761 debe aparecer VENTA-SERVICE con instancia en 9094 y UP.
 El lanzador no consulta rutas /internal, no genera JWT de servicio ni modifica
 la seguridad de Gateway o CORS React/Vite. No inicia servicios heredados.

@@ -30,7 +30,7 @@ ya la heredó; si falta, la solicita con entrada oculta. Enter permite omitirla
 y continuar con el CRUD local. Solo el proceso de Catálogo recibe la clave.
 No se necesita configurar PowerShell manualmente ni usar setx.
 
-Instrucciones completas y detención: `../ARRANQUE_LOCAL_WINDOWS.md`.
+Instrucciones completas y detención: `../../ARRANQUE_LOCAL_WINDOWS.md`.
 `iniciar_identidad.bat` no solicita RAWG. No incluir claves en colecciones exportadas.
 
 ## Seguridad y enrutamiento

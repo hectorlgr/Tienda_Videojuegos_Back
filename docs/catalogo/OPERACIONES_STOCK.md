@@ -8,7 +8,7 @@ La API autenticada de Etapa 4.3 está documentada en
 Núcleo Java/JPA independiente del adaptador HTTP de Etapa 4.3.
 No modifica las operaciones administrativas, Producto, RAWG ni imágenes.
 
-Script completo: `sql/07_crear_operaciones_stock.sql`. Es manual, aditivo y para
+Script completo: `../../catalogo-service/sql/07_crear_operaciones_stock.sql`. Es manual, aditivo y para
 MySQL 8.4. El usuario confirmó su aplicación y validación con Hibernate al cerrar
 4.2; no volver a ejecutarlo. Se conserva `spring.jpa.hibernate.ddl-auto=validate`.
 El DDL tiene commit implícito: ante errores, detenerse e inspeccionar.

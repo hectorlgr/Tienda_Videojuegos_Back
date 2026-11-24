@@ -63,7 +63,7 @@ Auth verifica otra vez firma HS256, validez temporal, expiración presente e ID.
 
 Hay configuraciones locales de Auth/Gateway ignoradas por Git y ejemplos
 reproducibles. Faltan variables externas y la base nueva preparada antes de
-arrancar. Véase `../PRUEBAS_IDENTIDAD_LOCAL.md`. No se han iniciado servicios
+arrancar. Véase `PRUEBAS_IDENTIDAD_LOCAL.md`. No se han iniciado servicios
 ni comprobado respuestas HTTP en esta etapa.
 
 Validación funcional pendiente con Swagger/Postman:

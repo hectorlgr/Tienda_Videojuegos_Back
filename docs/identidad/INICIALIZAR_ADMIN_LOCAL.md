@@ -41,7 +41,7 @@ Los mensajes propios del mecanismo no incluyen correo, contraseña ni hash.
 1. Revisar esta implementación antes de ejecutarla.
 2. Tener la base y tabla nuevas ya preparadas y las variables DB_URL,
    DB_USERNAME, DB_PASSWORD y JWT_SECRET configuradas según
-   `../PRUEBAS_IDENTIDAD_LOCAL.md`. Mantener el mismo JWT_SECRET del Gateway.
+   `PRUEBAS_IDENTIDAD_LOCAL.md`. Mantener el mismo JWT_SECRET del Gateway.
 3. Detener Auth normal para liberar el puerto 9096. No iniciar otras instancias
    de bootstrap. No hace falta arrancar Usuarios ni Ventas.
 4. Confirmar que no hay DEBUG/TRACE de SQL/bindings ni transcripción de secretos

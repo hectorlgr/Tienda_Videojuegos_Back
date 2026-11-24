@@ -863,7 +863,7 @@ const formatos = { fisico: "FISICO", "físico": "FISICO", digital: "DIGITAL" };
 una política única en SecurityConfig de Gateway. Autoriza
 http://localhost:5173 y http://127.0.0.1:5173, métodos GET/POST/PUT/DELETE/OPTIONS,
 headers Authorization/Content-Type, sin cookies. El equipo confirmó OPTIONS
-y GET desde localhost:5173. Véase `../api-gateway/CORS_FRONTEND_LOCAL.md`.
+y GET desde localhost:5173. Véase `../gateway/CORS_FRONTEND_LOCAL.md`.
 Las nuevas rutas administrativas están cubiertas por esa política existente;
 esta tarea no modificó CORS ni ejecutó pruebas de navegador.
 Los párrafos siguientes conservan el diagnóstico original, no el estado actual

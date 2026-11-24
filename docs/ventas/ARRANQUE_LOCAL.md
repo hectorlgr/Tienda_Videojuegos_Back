@@ -16,7 +16,7 @@ Ver la sección **1.2** para la finalidad, restricciones y consultas de verifica
 
 Requisitos existentes: Java 21, MySQL 8.4, PowerShell y Maven Wrapper del
 repositorio. Para el recorrido por Gateway también se necesitan Eureka y Gateway.
-Para el entorno completo, usar por doble clic `../iniciar_checkpoint_local.bat`:
+Para el entorno completo, usar por doble clic `../../iniciar_checkpoint_local.bat`:
 inicia Eureka, Identidad, Catálogo, Ventas y Gateway. Solicita la contraseña
 `checkpoint_app` y, por separado, `checkpoint_ventas_app`, ambas ocultas.
 Genera el JWT_SECRET humano compartido y prepara STOCK_SERVICE_JWT_SECRET
@@ -24,7 +24,7 @@ solo para Catálogo/Ventas. Desde Etapa 4.5 Ventas contiene un cliente interno q
 emite JWT al invocarse; aún no hay flujo ni endpoint de pedidos que lo invoque.
 Mantiene `ddl-auto=validate` y los permisos SELECT actuales. No ejecutar
 simultáneamente ese lanzador y las consolas aisladas de este documento.
-Ver [arranque Windows](../ARRANQUE_LOCAL_WINDOWS.md) para disponibilidad,
+Ver [arranque Windows](../../ARRANQUE_LOCAL_WINDOWS.md) para disponibilidad,
 registro VENTA-SERVICE en Eureka, detención y login tras reiniciar.
 
 **El servicio conserva la lógica heredada. Solo realizar las consultas GET
@@ -47,13 +47,13 @@ Aplicar solo los scripts aditivos pendientes: 02 (sección 1.1) y 03 (sección 1
 
 Con una cuenta administradora, revisar y ejecutar una sola vez:
 
-`sql/01_crear_checkpoint_store_ventas.sql`
+`../../venta-service/sql/01_crear_checkpoint_store_ventas.sql`
 
 Orden del archivo: crear `checkpoint_store_ventas`, crear `ventas`, crear
 `detalle_ventas` con su FK local. No contiene datos de ejemplo. Si la base
 ya existe, detenerse: no borrar, reemplazar ni continuar automáticamente.
 El DDL hace commit implícito; tras un fallo revisar qué se aplicó.
-No ejecutar `src/main/resources/db/changelog/db.changelog.sql`: es histórico.
+No ejecutar `../../venta-service/src/main/resources/db/changelog/db.changelog.sql`: es histórico.
 No modificar `db_ventas`, `db_pedidos` ni `db_despachos`.
 
 Después, crear una cuenta local propia para esta etapa. Sustituir el marcador
@@ -87,7 +87,7 @@ La revisión estática no demuestra que Hibernate haya validado una base real.
 ### 1.1 Etapa 3.1 — añadir el modelo de pedidos
 
 Con los servicios detenidos, usar una cuenta administradora para revisar y
-ejecutar una sola vez `sql/02_crear_tablas_pedidos.sql` sobre MySQL 8.4.
+ejecutar una sola vez `../../venta-service/sql/02_crear_tablas_pedidos.sql` sobre MySQL 8.4.
 El archivo utiliza nombres cualificados de `checkpoint_store_ventas` y crea
 únicamente `pedidos` y `detalle_pedidos`. No ejecutar otra vez 01, ni crear
 otra base, ni modificar `ventas`, `detalle_ventas` o las bases heredadas.
@@ -210,7 +210,7 @@ Compilar e inspeccionar mapping/SQL no certifica ejecución real en MySQL.
 
 ### 1.2 Etapa 4.6A.1 — intención técnica durable
 
-Script completo: [`sql/03_crear_solicitudes_pedido.sql`](sql/03_crear_solicitudes_pedido.sql).
+Script completo: [`../../venta-service/sql/03_crear_solicitudes_pedido.sql`](../../venta-service/sql/03_crear_solicitudes_pedido.sql).
 Crear únicamente `checkpoint_store_ventas.solicitudes_pedido`, manualmente con
 una cuenta administradora y los servicios detenidos. Sin semillas, cambios en
 tablas existentes, permisos ni FK externas. Ante una tabla existente o error de
@@ -370,7 +370,7 @@ entrega y aceptación comercial requerirán un diseño posterior antes del check
 
 ### 1.3 Etapa 4.6B.1 — checkout, compensación y resultado
 
-Script completo: [`sql/04_ampliar_solicitudes_pedido_checkout.sql`](sql/04_ampliar_solicitudes_pedido_checkout.sql).
+Script completo: [`../../venta-service/sql/04_ampliar_solicitudes_pedido_checkout.sql`](../../venta-service/sql/04_ampliar_solicitudes_pedido_checkout.sql).
 Ejecutar una sola vez, manualmente, con escritores detenidos y cuenta administradora.
 No repetir 01/02/03. El script solo hace ALTER sobre solicitudes_pedido.
 Se conserva `ddl-auto=validate`: sin las nuevas columnas Ventas no podrá arrancar.

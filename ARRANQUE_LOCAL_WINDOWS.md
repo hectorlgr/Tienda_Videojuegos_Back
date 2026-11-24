@@ -90,4 +90,4 @@ Pendiente comprobar mediante doble clic:
   detener todas antes de reintentar.
 
 No inspeccionar/imprimir el entorno completo ni volcar claves para verificarlo.
-Detalles de variables, orden y configuración: [ARRANQUE_CHECKPOINT_LOCAL.md](ARRANQUE_CHECKPOINT_LOCAL.md).
+Detalles de variables, orden y configuración: [ARRANQUE_CHECKPOINT_LOCAL.md](docs/instalacion/ARRANQUE_CHECKPOINT_LOCAL.md).

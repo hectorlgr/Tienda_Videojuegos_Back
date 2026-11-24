@@ -3,13 +3,13 @@
 ## Estrategia
 
 El esquema se crea una sola vez desde MySQL Workbench con
-`sql/crear_productos_checkpoint_store_catalogo.sql`. No hay migraciones
+`../../catalogo-service/sql/crear_productos_checkpoint_store_catalogo.sql`. No hay migraciones
 automáticas: se retiró la dependencia de Liquibase del POM y sus propiedades
 de la configuración de Catálogo. No se incorpora otra herramienta.
 `spring.jpa.hibernate.ddl-auto=validate` comprueba el esquema al arrancar;
 `spring.sql.init.mode=never` desactiva la inicialización SQL de Spring.
 
-El archivo heredado `src/main/resources/db/changelog/db.changelog.sql` queda
+El archivo heredado `../../catalogo-service/src/main/resources/db/changelog/db.changelog.sql` queda
 solo como referencia histórica inactiva. No ejecutarlo: contiene ferretería.
 No está referenciado por la configuración y no hay Liquibase en el módulo
 para procesarlo. El SQL nuevo está fuera del classpath de la aplicación.
@@ -75,7 +75,7 @@ Con una cuenta administrativa en Workbench:
    Se esperan cero productos y ninguna columna coincidente. Si no se cumple,
    detenerse y revisar antes de aplicar el script.
 
-2. Ejecutar una sola vez `sql/agregar_categoria_productos.sql`. Añade únicamente
+2. Ejecutar una sola vez `../../catalogo-service/sql/agregar_categoria_productos.sql`. Añade únicamente
    categoria y su restricción de valores; no modifica las demás columnas,
    no borra ni recrea tablas y no inserta datos. No requiere ampliar los permisos
    de checkpoint_app: el ALTER lo ejecuta la cuenta administrativa.

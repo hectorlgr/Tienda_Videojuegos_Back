@@ -154,7 +154,7 @@ public class MaterializacionPedidoService {
                 || contexto.versionPoliticaDespacho() != DespachoFijoV1.VERSION
                 || contexto.versionContratoComercial() != 1) fallo(CONTEXTO_DESPACHO_INVALIDO);
         long despacho = DespachoFijoV1.costo(composicion);
-        if (contexto.costoDespacho() != despacho) fallo(CONTEXTO_DESPACHO_INVALIDO);
+        if (contexto.costoDespacho() != despacho) fallo(DESPACHO_FISICO_INVALIDO);
         long total;
         try {
             total = Math.addExact(snapshot.totalProductos(), despacho);
@@ -202,6 +202,22 @@ public class MaterializacionPedidoService {
             p.getDetalles().add(d);
         }
         return p;
+    }
+
+    /**
+     * Revalida la MISMA regla comercial bajo el lock de una nueva transacción de
+     * decisión. No persiste ni convierte errores técnicos/snapshot en compensación.
+     */
+    static String motivoCompensacion(SolicitudPedido s, ResultadoStock stock) {
+        validarStock(s, stock);
+        s.exigirCheckoutParaDescuento();
+        try {
+            preparar(s, stock.operacion().snapshot());
+        } catch (MaterializacionPedidoException ex) {
+            if (ex.requiereCompensacion()) return ex.getCodigo().name();
+            throw ex;
+        }
+        throw new IllegalStateException("No existe incumplimiento comercial definitivo");
     }
 
     private static void verificarIdentidad(SolicitudPedido s, Pedido p) {

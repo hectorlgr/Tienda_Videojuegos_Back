@@ -1,5 +1,9 @@
 # Solicitudes durables — Etapa 4.6B.1
 
+Actualización 4.6C: [COORDINADOR_PEDIDOS.md](COORDINADOR_PEDIDOS.md) describe el
+coordinador, las autorizaciones locales y las transiciones de compensación/cierre
+ya implementadas. Las referencias posteriores a esas funciones futuras son históricas.
+
 Actualización 4.6B.3A: `registrarConCheckout`, canonicalización/hash comercial y
 recuperación completa implementados. Ver [REGISTRO_CHECKOUT.md](REGISTRO_CHECKOUT.md)
 para el contrato vigente y el rechazo explícito cuando falta política backend.

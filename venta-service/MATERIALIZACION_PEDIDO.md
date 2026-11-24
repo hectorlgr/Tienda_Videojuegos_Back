@@ -1,5 +1,9 @@
 # Materialización local — Etapa 4.6B.2
 
+Actualización 4.6C: [COORDINADOR_PEDIDOS.md](COORDINADOR_PEDIDOS.md) integra la
+materialización y revalida su fallo comercial en una transacción independiente
+antes de decidir compensación durable. La señal comercial ya tiene consumidor.
+
 Actualización de despacho: [POLITICA_DESPACHO_V1.md](POLITICA_DESPACHO_V1.md)
 define la tarifa aprobada 0/3990 por pedido. La materialización verifica versión
 y correspondencia del costo congelado con el snapshot, sin actualizar el checkout.

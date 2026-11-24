@@ -225,6 +225,49 @@ public class SolicitudPedido {
         }
     }
 
+    /** Decisión irreversible; el servicio debe comprobar ausencia de pedido y fallo comercial. */
+    public void decidirCompensacion(UUID token, Instant ahora, String codigo) {
+        exigirTokenVigente(token, ahora);
+        exigirCheckoutParaDescuento();
+        if (codigo == null || !codigo.matches("[A-Z][A-Z0-9_]{0,63}")) {
+            throw new IllegalArgumentException("Motivo de compensación inválido");
+        }
+        codigoCompensacion = codigo;
+        estado = EstadoSolicitudPedido.COMPENSACION_PENDIENTE;
+        actualizar(ahora);
+    }
+
+    /** Solo evidencia terminal remota validada por el servicio; nunca crea PEDIDO_CREADO. */
+    public void resolverSinPedido(UUID token, Instant ahora, ContratoStock.Operacion operacion) {
+        exigirTokenVigente(token, ahora);
+        if (!operacionStockId.equals(operacion.operacionId().toString())) {
+            throw new IllegalArgumentException("Operación ajena");
+        }
+        DatosCheckoutSolicitud.TipoResultado tipo;
+        String codigo;
+        if (operacion.estado() == ContratoStock.Estado.RECHAZADA) {
+            tipo = DatosCheckoutSolicitud.TipoResultado.RECHAZO_DEFINITIVO;
+            codigo = operacion.codigo();
+            // RECHAZADA es terminal sin descuento. SQL 04 exige motivo NULL.
+            codigoCompensacion = null;
+        } else {
+            if (estado != EstadoSolicitudPedido.COMPENSACION_PENDIENTE || codigoCompensacion == null) {
+                throw new IllegalStateException("Cierre remoto sin decisión durable de compensación");
+            }
+            tipo = switch (operacion.estado()) {
+                case REVERTIDA -> DatosCheckoutSolicitud.TipoResultado.COMPENSACION_CONFIRMADA;
+                case CANCELADA -> DatosCheckoutSolicitud.TipoResultado.CIERRE_PREVENTIVO_CONFIRMADO;
+                default -> throw new IllegalArgumentException("Operación no terminal");
+            };
+            codigo = codigoCompensacion;
+        }
+        resultado = new DatosCheckoutSolicitud.Resultado(1, tipo, codigo, operacion.estado(), null);
+        estado = EstadoSolicitudPedido.RESUELTA;
+        tokenReclamacion = null;
+        bloqueoHasta = null;
+        actualizar(ahora);
+    }
+
     private void actualizar(Instant ahora) {
         Instant micros = Objects.requireNonNull(ahora).truncatedTo(ChronoUnit.MICROS);
         if (micros.isAfter(fechaActualizacion)) fechaActualizacion = micros;

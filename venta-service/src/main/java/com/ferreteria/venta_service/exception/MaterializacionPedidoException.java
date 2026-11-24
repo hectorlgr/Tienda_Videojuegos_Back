@@ -4,7 +4,7 @@ package com.ferreteria.venta_service.exception;
 public class MaterializacionPedidoException extends RuntimeException {
     public enum Codigo {
         SNAPSHOT_INVALIDO, CHECKOUT_AUSENTE, COMPENSACION_PENDIENTE,
-        ENTREGA_FISICA_AUSENTE, DESPACHO_DIGITAL_INVALIDO,
+        ENTREGA_FISICA_AUSENTE, DESPACHO_DIGITAL_INVALIDO, DESPACHO_FISICO_INVALIDO,
         TOTAL_NO_ACEPTADO, TOTAL_FUERA_DE_RANGO, PEDIDO_INCONSISTENTE,
         PERSISTENCIA_TRANSITORIA, CONTEXTO_DESPACHO_INVALIDO
     }
@@ -26,7 +26,7 @@ public class MaterializacionPedidoException extends RuntimeException {
     /** Señal al futuro coordinador, NO una decisión durable ni autorización de HTTP. */
     public boolean requiereCompensacion() {
         return switch (codigo) {
-            case ENTREGA_FISICA_AUSENTE, DESPACHO_DIGITAL_INVALIDO,
+            case ENTREGA_FISICA_AUSENTE, DESPACHO_DIGITAL_INVALIDO, DESPACHO_FISICO_INVALIDO,
                     TOTAL_NO_ACEPTADO, TOTAL_FUERA_DE_RANGO -> true;
             default -> false;
         };

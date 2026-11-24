@@ -54,6 +54,7 @@ public final class DatosCheckoutSolicitud {
         CIERRE_PREVENTIVO_CONFIRMADO, RECHAZO_LOCAL
     }
 
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public record Resultado(int versionContrato, TipoResultado tipo, String codigo,
             ContratoStock.Estado estadoRemoto, Long pedidoId) {
         public Resultado {

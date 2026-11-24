@@ -9,6 +9,8 @@ import com.ferreteria.venta_service.model.DatosCheckoutSolicitud;
 import com.ferreteria.venta_service.exception.PreparacionCheckoutException;
 import org.springframework.beans.factory.ObjectProvider;
 import com.ferreteria.venta_service.repository.SolicitudPedidoRepository;
+import com.ferreteria.venta_service.repository.PedidoRepository;
+import com.ferreteria.venta_service.stock.ResultadoStock;
 import com.ferreteria.venta_service.stock.ContratoStock;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,6 +27,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
 
 /** Solo persistencia local. Comprador recibido de código confiable, nunca de un body/encabezado. */
 @Service
@@ -36,13 +39,16 @@ public class SolicitudPedidoService {
     private final TransactionTemplate escritura;
     private final TransactionTemplate lectura;
     private final ObjectProvider<PoliticaCheckout> politica;
+    private final PedidoRepository pedidos;
 
     public SolicitudPedidoService(SolicitudPedidoRepository repository, PlatformTransactionManager manager,
-            ObjectProvider<PoliticaCheckout> politica) {
+            ObjectProvider<PoliticaCheckout> politica, PedidoRepository pedidos) {
         this.repository = repository;
         this.politica = politica;
+        this.pedidos = pedidos;
         escritura = new TransactionTemplate(manager);
         escritura.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        escritura.setTimeout(10);
         lectura = new TransactionTemplate(manager);
         lectura.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         lectura.setReadOnly(true);
@@ -177,6 +183,126 @@ public class SolicitudPedidoService {
     public SolicitudPedidoInterna liberar(Long id, UUID token) {
         Objects.requireNonNull(token, "Token requerido");
         return actualizar(id, (s, ahora) -> s.liberar(token, ahora));
+    }
+
+    /** Recuperación interna por ID; no vuelve a consultar políticas ni productos. */
+    public SolicitudPedidoInterna buscarPorId(Long id) {
+        if (id == null || id <= 0) throw new IllegalArgumentException("ID de solicitud inválido");
+        return lectura.execute(status -> {
+            var s = repository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Solicitud de pedido inexistente"));
+            if (s.getResultado() != null
+                    && s.getResultado().tipo() == DatosCheckoutSolicitud.TipoResultado.PEDIDO_CREADO) {
+                var p = pedidos.buscarPorOperacionStock(s.getOperacionStockId())
+                        .orElseThrow(() -> new IllegalStateException("Resultado sin pedido persistido"));
+                if (!Objects.equals(p.getId(), s.getResultado().pedidoId())
+                        || !Objects.equals(p.getCompradorId(), s.getCompradorId())
+                        || !Objects.equals(p.getClaveIdempotencia(), s.getClaveIdempotencia())
+                        || !Objects.equals(p.getHashSolicitud(), s.getHashCheckout())) {
+                    throw new IllegalStateException("Pedido terminal inconsistente");
+                }
+            }
+            return SolicitudPedidoInterna.from(s);
+        });
+    }
+
+    /** Write-ahead de incertidumbre y renovación antes de cada llamada remota. */
+    public SolicitudPedidoInterna prepararConsulta(Long id, UUID token, Duration duracion) {
+        return coordinar(id, token, (s, ahora) -> {
+            s.renovar(token, ahora, duracion);
+            s.marcarReconciliacion(token, ahora);
+        });
+    }
+
+    public SolicitudPedidoInterna autorizarAplicacion(Long id, UUID token, Duration duracion) {
+        return coordinar(id, token, (s, ahora) -> {
+            s.exigirCheckoutParaDescuento();
+            exigirSinPedido(s);
+            s.renovar(token, ahora, duracion);
+            s.marcarReconciliacion(token, ahora);
+        });
+    }
+
+    public SolicitudPedidoInterna decidirCompensacion(Long id, UUID token, ResultadoStock aplicada) {
+        return coordinar(id, token, (s, ahora) -> {
+            exigirSinPedido(s);
+            String motivo = MaterializacionPedidoService.motivoCompensacion(s, aplicada);
+            s.decidirCompensacion(token, ahora, motivo);
+        });
+    }
+
+    public SolicitudPedidoInterna autorizarReversion(Long id, UUID token, Duration duracion) {
+        return coordinar(id, token, (s, ahora) -> {
+            exigirSinPedido(s);
+            if (s.getEstado() != EstadoSolicitudPedido.COMPENSACION_PENDIENTE
+                    || s.getCodigoCompensacion() == null) {
+                throw new IllegalStateException("Reversión sin decisión durable");
+            }
+            s.renovar(token, ahora, duracion);
+        });
+    }
+
+    public SolicitudPedidoInterna confirmarCierreRemoto(Long id, UUID token, ResultadoStock remoto) {
+        return coordinar(id, token, (s, ahora) -> {
+            exigirSinPedido(s);
+            validarCierre(s, remoto);
+            s.resolverSinPedido(token, ahora, remoto.operacion());
+        });
+    }
+
+    public SolicitudPedidoInterna dejarRecuperable(Long id, UUID token) {
+        return coordinar(id, token, (s, ahora) -> {
+            s.marcarReconciliacion(token, ahora); // Conserva COMPENSACION_PENDIENTE.
+            s.liberar(token, ahora);
+        });
+    }
+
+    private void exigirSinPedido(SolicitudPedido s) {
+        if (pedidos.buscarPorOperacionStock(s.getOperacionStockId()).isPresent()
+                || pedidos.findByCompradorIdAndClaveIdempotencia(s.getCompradorId(),
+                        s.getClaveIdempotencia()).isPresent()) {
+            throw new IllegalStateException("Existe pedido; no autorizar descuento, compensación ni cierre sin pedido");
+        }
+    }
+
+    private static void validarCierre(SolicitudPedido s, ResultadoStock r) {
+        if (r == null || r.operacion() == null || r.tipo() == null
+                || !Objects.equals(r.operacionId(), r.operacion().operacionId())
+                || !s.getOperacionStockId().equals(r.operacionId().toString())
+                || !r.tipo().name().equals(r.operacion().estado().name())
+                || !Objects.equals(r.codigo(), r.operacion().codigo())
+                || !(Objects.equals(r.httpStatus(), 200) || Objects.equals(r.httpStatus(), 409))
+                || !Set.of(ContratoStock.Estado.RECHAZADA, ContratoStock.Estado.REVERTIDA,
+                        ContratoStock.Estado.CANCELADA).contains(r.operacion().estado())) {
+            throw new IllegalArgumentException("Cierre remoto no confirmado");
+        }
+        if (r.operacion().snapshot() != null) {
+            Map<Long, Integer> cantidades = new HashMap<>();
+            s.getSolicitud().items().forEach(i -> cantidades.put(i.productoId(), i.cantidad()));
+            for (var d : r.operacion().snapshot().items()) {
+                if (!Objects.equals(cantidades.remove(d.productoId()), d.cantidad())) {
+                    throw new IllegalArgumentException("Snapshot de cierre distinto");
+                }
+            }
+            if (!cantidades.isEmpty()) throw new IllegalArgumentException("Snapshot de cierre incompleto");
+        }
+    }
+
+    private SolicitudPedidoInterna coordinar(Long id, UUID token, BiConsumer<SolicitudPedido, Instant> cambio) {
+        return actualizar(id, (s, ahora) -> {
+            s.exigirTokenVigente(token, ahora);
+            Instant anterior = s.getBloqueoHasta();
+            cambio.accept(s, ahora);
+            Instant vence = s.getBloqueoHasta() == null ? anterior : s.getBloqueoHasta();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void beforeCommit(boolean readOnly) {
+                    if (!vence.isAfter(ahora())) {
+                        throw new SolicitudPedidoConflictException(
+                                SolicitudPedidoConflictException.Codigo.TOKEN_NO_VIGENTE);
+                    }
+                }
+            });
+        });
     }
 
     private SolicitudPedidoInterna actualizar(Long id, BiConsumer<SolicitudPedido, Instant> cambio) {

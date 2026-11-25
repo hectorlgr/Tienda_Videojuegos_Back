@@ -6,6 +6,7 @@ import com.ferreteria.auth_service.exception.BadRequestException;
 import com.ferreteria.auth_service.model.User;
 import com.ferreteria.auth_service.repository.UserRepository;
 import com.ferreteria.auth_service.security.Roles;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,14 @@ public class AdminUsuarioService {
 
     private final UserRepository userRepository;
     private final HashService hashService;
+
+    @Transactional(readOnly = true)
+    public List<AdminUsuarioResponseDto> listarUsuarios() {
+        return userRepository.findAll().stream()
+                .map(user -> new AdminUsuarioResponseDto(user.getId(), user.getNombre(),
+                        user.getEmail(), user.getRole()))
+                .toList();
+    }
 
     @Transactional
     public AdminUsuarioResponseDto crearUsuario(AdminUsuarioRequestDto dto) {

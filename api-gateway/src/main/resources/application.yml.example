@@ -25,7 +25,7 @@ spring:
           uri: lb://identidad-service
           predicates:
             - Path=/api/v1/admin/usuarios
-            - Method=POST
+            - Method=GET,POST
         - id: auth-perfil
           uri: lb://identidad-service
           predicates:

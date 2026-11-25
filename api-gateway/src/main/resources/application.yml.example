@@ -26,6 +26,11 @@ spring:
           predicates:
             - Path=/api/v1/admin/usuarios
             - Method=GET,POST
+        - id: auth-admin-usuario-por-id
+          uri: lb://identidad-service
+          predicates:
+            - Path=/api/v1/admin/usuarios/{id}
+            - Method=GET
         - id: auth-perfil
           uri: lb://identidad-service
           predicates:

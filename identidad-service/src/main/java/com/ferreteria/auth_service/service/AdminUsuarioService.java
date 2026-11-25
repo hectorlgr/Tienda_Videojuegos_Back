@@ -7,6 +7,7 @@ import com.ferreteria.auth_service.model.User;
 import com.ferreteria.auth_service.repository.UserRepository;
 import com.ferreteria.auth_service.security.Roles;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,13 @@ public class AdminUsuarioService {
                 .map(user -> new AdminUsuarioResponseDto(user.getId(), user.getNombre(),
                         user.getEmail(), user.getRole()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AdminUsuarioResponseDto> obtenerUsuario(Long id) {
+        return userRepository.findById(id)
+                .map(user -> new AdminUsuarioResponseDto(user.getId(), user.getNombre(),
+                        user.getEmail(), user.getRole()));
     }
 
     @Transactional

@@ -1,0 +1,205 @@
+name: checkpoint
+
+x-runtime: &runtime
+  platform: linux/amd64
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-java: &java
+  <<: *runtime
+  volumes:
+    - ./backend:/config:ro
+  networks: [backend]
+
+x-jvm: &jvm
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=50.0
+
+x-app: &app
+  <<: *jvm
+  SPRING_CONFIG_IMPORT: configtree:/run/secrets/
+  SPRING_CONFIG_LOCATION: classpath:/application.properties.example[.properties],file:/config/network.properties,file:/config/database.properties
+
+x-dependencies: &dependencies
+  mysql: {condition: service_healthy}
+  eureka: {condition: service_healthy}
+
+x-health: &health
+  interval: 10s
+  timeout: 4s
+  retries: 6
+  start_period: 90s
+
+# El código de stock lee System.getenv directamente.
+x-stock-entrypoint: &stock-entrypoint
+  - bash
+  - -ec
+  - |
+    STOCK_SERVICE_JWT_SECRET=$$(cat /run/secrets/STOCK_SERVICE_JWT_SECRET)
+    export STOCK_SERVICE_JWT_SECRET
+    exec java -jar app.jar
+
+services:
+  mysql:
+    <<: *runtime
+    image: mysql:8.4.8@sha256:4fc4bca5a26c5aa2246a92779d238bc2d34f0373e65dc083d7b635b02780dd3d
+    restart: "no"
+    mem_limit: 1536m
+    entrypoint: [bash, /checkpoint/start.sh]
+    environment:
+      CHECKPOINT_MYSQL_NETWORK: ${DB_SUBNET:-172.28.36.0/24}
+    networks: [backend]
+    secrets: [root, checkpoint_app, checkpoint_ventas_app]
+    volumes:
+      - type: volume
+        source: mysql-data
+        target: /var/lib/mysql
+        volume: {nocopy: true}
+      - ./mysql/start.sh:/checkpoint/start.sh:ro
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ../docs/identidad/ESQUEMA_IDENTIDAD.md:/checkpoint/ESQUEMA_IDENTIDAD.md:ro
+      - ../catalogo-service/sql:/checkpoint/catalogo:ro
+      - ../venta-service/sql:/checkpoint/ventas:ro
+    healthcheck:
+      <<: *health
+      test: [CMD-SHELL, 'test -f /var/lib/mysql/.checkpoint-init-v1 && mysqladmin --protocol=tcp -h127.0.0.1 ping --silent']
+
+  eureka:
+    <<: *java
+    build: ../eureka-server
+    mem_limit: 768m
+    environment:
+      <<: *jvm
+      DOCKER_SERVICE_NAME: eureka
+      SPRING_CONFIG_LOCATION: classpath:/application.properties,file:/config/network.properties
+    healthcheck:
+      <<: *health
+      test: [CMD, bash, -ec, 'echo > /dev/tcp/127.0.0.1/8761']
+
+  identidad:
+    <<: *java
+    build: ../identidad-service
+    mem_limit: 768m
+    depends_on: *dependencies
+    networks:
+      backend: {aliases: [identidad-service]}
+    environment:
+      <<: *app
+      DOCKER_SERVICE_NAME: identidad-service
+      MYSQL_SCHEMA: checkpoint_store_identidad
+      MYSQL_APP_USERNAME: checkpoint_app
+    secrets:
+      - {source: checkpoint_app, target: MYSQL_APP_PASSWORD}
+      - {source: jwt, target: JWT_SECRET}
+    healthcheck:
+      <<: *health
+      test: [CMD, bash, -ec, 'echo > /dev/tcp/127.0.0.1/9096']
+
+  catalogo:
+    <<: *java
+    build: ../catalogo-service
+    mem_limit: 1024m
+    depends_on: *dependencies
+    networks:
+      backend: {aliases: [catalogo-service]}
+    entrypoint: *stock-entrypoint
+    environment:
+      <<: *app
+      DOCKER_SERVICE_NAME: catalogo-service
+      MYSQL_SCHEMA: checkpoint_store_catalogo
+      MYSQL_APP_USERNAME: checkpoint_app
+      CATALOGO_IMAGENES_DIR: /var/lib/checkpoint/imagenes
+      CATALOGO_PUBLIC_BASE_URL: ${CATALOGO_PUBLIC_BASE_URL:-${PUBLIC_ORIGIN:?Definir PUBLIC_ORIGIN}}
+    volumes:
+      - ./backend:/config:ro
+      - catalogo-imagenes:/var/lib/checkpoint/imagenes
+    secrets:
+      - {source: checkpoint_app, target: MYSQL_APP_PASSWORD}
+      - {source: jwt, target: JWT_SECRET}
+      - {source: stock, target: STOCK_SERVICE_JWT_SECRET}
+      - {source: rawg, target: RAWG_API_KEY}
+    healthcheck:
+      <<: *health
+      test: [CMD, bash, -ec, 'echo > /dev/tcp/127.0.0.1/9091']
+
+  ventas:
+    <<: *java
+    build: ../venta-service
+    mem_limit: 896m
+    depends_on: *dependencies
+    networks:
+      backend: {aliases: [venta-service]}
+    entrypoint: *stock-entrypoint
+    environment:
+      <<: *app
+      DOCKER_SERVICE_NAME: venta-service
+      MYSQL_SCHEMA: checkpoint_store_ventas
+      MYSQL_APP_USERNAME: checkpoint_ventas_app
+      CHECKOUT_VERSION_CONDICIONES: ${CHECKOUT_VERSION_CONDICIONES:-CHECKPOINT_COMPRA_V1}
+    secrets:
+      - {source: checkpoint_ventas_app, target: MYSQL_APP_PASSWORD}
+      - {source: jwt, target: JWT_SECRET}
+      - {source: stock, target: STOCK_SERVICE_JWT_SECRET}
+    healthcheck:
+      <<: *health
+      test: [CMD, bash, -ec, 'echo > /dev/tcp/127.0.0.1/9094']
+
+  gateway:
+    <<: *java
+    build: ../api-gateway
+    mem_limit: 640m
+    depends_on:
+      eureka: {condition: service_healthy}
+    networks:
+      backend: {aliases: [api-gateway]}
+      web: {ipv4_address: "${GATEWAY_WEB_IP:-172.28.37.10}"}
+    environment:
+      <<: *jvm
+      DOCKER_SERVICE_NAME: api-gateway
+      SPRING_CONFIG_IMPORT: configtree:/run/secrets/
+      SPRING_CONFIG_LOCATION: classpath:/application.yml.example[.yaml],file:/config/network.properties,file:/config/gateway.properties
+      CORS_PUBLIC_ORIGIN: ${CORS_PUBLIC_ORIGIN:-${PUBLIC_ORIGIN:?Definir PUBLIC_ORIGIN}}
+    secrets:
+      - {source: jwt, target: JWT_SECRET}
+    healthcheck:
+      <<: *health
+      test: [CMD, bash, -ec, 'echo > /dev/tcp/127.0.0.1/9090']
+
+  frontend:
+    <<: *runtime
+    build:
+      context: ${FRONTEND_REPO:-../../checkpoint-store-frontend}
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-${PUBLIC_ORIGIN:?Definir PUBLIC_ORIGIN}}
+    mem_limit: 128m
+    depends_on:
+      gateway: {condition: service_healthy}
+    networks: [web]
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
+    healthcheck:
+      <<: *health
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/]
+
+networks:
+  backend:
+    ipam:
+      config: [{subnet: "${DB_SUBNET:-172.28.36.0/24}"}]
+  web:
+    ipam:
+      config: [{subnet: "${WEB_SUBNET:-172.28.37.0/24}"}]
+
+volumes:
+  mysql-data:
+  catalogo-imagenes:
+
+secrets:
+  root: {file: "${SECRET_DIR:?Definir SECRET_DIR}/root"}
+  checkpoint_app: {file: "${SECRET_DIR:?Definir SECRET_DIR}/checkpoint_app"}
+  checkpoint_ventas_app: {file: "${SECRET_DIR:?Definir SECRET_DIR}/checkpoint_ventas_app"}
+  jwt: {file: "${SECRET_DIR:?Definir SECRET_DIR}/jwt"}
+  stock: {file: "${SECRET_DIR:?Definir SECRET_DIR}/stock"}
+  rawg: {file: "${SECRET_DIR:?Definir SECRET_DIR}/rawg"}

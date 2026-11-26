@@ -1,5 +1,6 @@
 package com.ferreteria.api_gateway.config;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.List;
@@ -29,6 +30,9 @@ public class SecurityConfig {
 
         @Value("${spring.security.oauth2.resourceserver.jwt.secret-key}")
         private String secret;
+
+        @Value("${checkpoint.cors.public-origin:#{null}}")
+        private String publicOrigin;
 
         @Bean
         public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
@@ -122,9 +126,9 @@ public class SecurityConfig {
         // No registrar además CorsWebFilter ni globalcors en application.yml.
         private UrlBasedCorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration cors = new CorsConfiguration();
-                cors.setAllowedOrigins(List.of(
-                                "http://localhost:5173",
-                                "http://127.0.0.1:5173"));
+                cors.setAllowedOrigins(publicOrigin == null
+                                ? List.of("http://localhost:5173", "http://127.0.0.1:5173")
+                                : List.of(validateOrigin(publicOrigin)));
                 cors.setAllowedMethods(List.of("GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"));
                 cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
                 cors.setAllowCredentials(false);
@@ -135,6 +139,17 @@ public class SecurityConfig {
                 source.registerCorsConfiguration("/internal/**", new CorsConfiguration());
                 source.registerCorsConfiguration("/**", cors);
                 return source;
+        }
+
+        private static String validateOrigin(String value) {
+                URI origin = URI.create(value);
+                if (!("https".equals(origin.getScheme()) || "http".equals(origin.getScheme()))
+                                || origin.getHost() == null || origin.getUserInfo() != null
+                                || !origin.getRawPath().isEmpty() || origin.getQuery() != null
+                                || origin.getFragment() != null || origin.getPort() > 65535) {
+                        throw new IllegalArgumentException("CORS requiere un origen HTTP(S) exacto");
+                }
+                return value;
         }
 
         // Bean para leer la firma del token
